@@ -1,0 +1,14 @@
+VulnHunter
+Copyright 2026 Neal Bridges
+
+This product includes software developed at Capital One and released as
+open source under the Apache License, Version 2.0:
+
+  https://github.com/capitalone/VulnHunter
+
+This repository is a fork of that work, continued under the Apache License,
+Version 2.0. Changes in this fork are licensed under the same terms.
+
+Third-party benchmark corpora referenced by the local harness (OWASP
+NodeGoat, OWASP Juice Shop, OWASP WebGoat) remain the property of their
+respective maintainers and are used under their own license terms.
