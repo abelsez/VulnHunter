@@ -113,11 +113,14 @@ The check applies even if the operator has *just* switched models mid-session â€
 
 **Step 0b: Confirm the installed skill is at upstream `main`.** *(in-place / interactive mode only)*
 
-The skill itself is versioned in `https://github.com/capitalone/vulnhunter` on `main`. Stale installs miss bug fixes (today the failure list includes: TLS-quirk handoffs, sandbox-friendly clone flags, the cluster-as-PR semantic, the `--repo` rule). Before doing anything else, confirm the user is running the latest skill:
+The skill itself is versioned in `https://github.com/nealbridges/VulnHunter` on `main` (the maintained fork of Capital One's VulnHunter). Stale installs miss bug fixes (today the failure list includes: TLS-quirk handoffs, sandbox-friendly clone flags, the cluster-as-PR semantic, the `--repo` rule). Before doing anything else, confirm the user is running the latest skill:
 
 ```bash
-# 1. Get the latest upstream HEAD SHA of main.
-UPSTREAM_HEAD="$(gh api repos/capitalone/vulnhunter/branches/main --jq .commit.sha 2>/dev/null)"
+# 1. Get the latest HEAD SHA of the repo the skill was installed from.
+#    The installer (install.sh) records the source repo (owner/name) in
+#    .installed-from-url at install time; default to the fork's main.
+SOURCE_URL="$(cat "${SKILL_DIR}/.installed-from-url" 2>/dev/null || echo "nealbridges/VulnHunter")
+UPSTREAM_HEAD="$(gh api "repos/${SOURCE_URL}/branches/main" --jq .commit.sha 2>/dev/null)"
 
 # 2. Get the SHA the installed skill is at. The installer (install.sh) writes
 #    this on every install. If the file is missing, the user installed by

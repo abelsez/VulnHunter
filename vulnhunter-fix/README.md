@@ -8,7 +8,7 @@ writes an exploit demo, writes a failing security test (RED), implements the fix
 
 ## Install
 
-This skill ships as part of the [VulnHunter](https://github.com/capitalone/vulnhunter)
+This skill ships as part of the [VulnHunter](https://github.com/nealbridges/VulnHunter) — a maintained fork of [Capital One's VulnHunter](https://github.com/capitalone/vulnhunter)
 repository. From the repository root, run the shared installer to copy all skills
 (including this one) into your harness's skills directory:
 

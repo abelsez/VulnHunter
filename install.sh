@@ -160,8 +160,14 @@ for entry in "${SKILLS[@]}"; do
     cp -R "$src" "$dst"
     # Record the source commit so a skill's staleness check (e.g.
     # vulnhunter-fix SKILL.md Step 0b) can compare the installed copy
-    # against upstream main. Best-effort: skipped outside a git checkout.
+    # against the repo it was installed from. Best-effort: skipped
+    # outside a git checkout.
     git -C "$SCRIPT_DIR" rev-parse HEAD > "$dst/.installed-from" 2>/dev/null || true
+    # Record the source repo (owner/name) so the staleness check can query
+    # the right GitHub repo. Best-effort: falls back to the fork default.
+    git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null \
+        | sed -E 's#^git@github\.com:##; s#^https://github\.com/##; s#\.git$##' \
+        > "$dst/.installed-from-url" 2>/dev/null || true
     echo "Installed $name (copied to $dst)"
 
     # vulnhunter-fix ships a Python package whose runtime deps (jsonschema,

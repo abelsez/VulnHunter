@@ -21,7 +21,8 @@ dependencies = [
 dev = ["pytest", "pytest-cov", "pytest-asyncio", "syrupy", "respx", "hypothesis", "anyio"]
 
 [project.urls]
-homepage = "https://github.com/capitalone/vulnhunter"
+homepage = "https://github.com/nealbridges/VulnHunter"
+upstream = "https://github.com/capitalone/vulnhunter"
 
 [tool.setuptools.packages.find]
 where = ["."]

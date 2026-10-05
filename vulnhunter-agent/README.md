@@ -1,7 +1,7 @@
 # VulnHunter Agent
 
-A config-driven runtime that automates the [`/vulnhunt`](https://github.com/capitalone/vulnhunter)
-scanner **headlessly** — no interactive Claude Code session required. Point it at a
+A config-driven runtime that automates the [`/vulnhunt`](https://github.com/nealbridges/VulnHunter)
+scanner **headlessly** — no interactive harness session required. Point it at a
 repository and it will clone the target, run the scanner, publish the results, and file
 each confirmed finding as a GitHub issue. It also has a `verify` mode that drives the
 read-only fix-verification flow.

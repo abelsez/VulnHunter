@@ -72,8 +72,19 @@ if errorlevel 8 (
 
 rem Record the source commit so a skill's staleness check (e.g.
 rem vulnhunter-fix SKILL.md Step 0b) can compare the installed copy against
-rem upstream main. Best-effort: skipped outside a git checkout.
+rem the repo it was installed from. Best-effort: skipped outside a git checkout.
 git -C "%SCRIPT_DIR%" rev-parse HEAD > "%dst%\.installed-from" 2>nul
+for /f "delims=" %%u in ('git -C "%SCRIPT_DIR%" remote get-url origin 2^>nul') do set "ORIGIN_URL=%%u"
+if defined ORIGIN_URL (
+    setlocal enabledelayedexpansion
+    set "ORIGIN_URL=!ORIGIN_URL:git@github.com:=!"
+    set "ORIGIN_URL=!ORIGIN_URL:https://github.com/=!"
+    set "ORIGIN_URL=!ORIGIN_URL:.git=!"
+    > "%dst%\.installed-from-url" echo !ORIGIN_URL!
+    endlocal
+) else (
+    > "%dst%\.installed-from-url" echo nealbridges/VulnHunter
+)
 echo Installed %name% (copied to %dst%)
 
 rem vulnhunter-fix ships a Python package whose runtime deps (jsonschema,

@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/capitalone/vulnhunter/verify_disposition.schema.json",
+  "x-fork-home": "https://github.com/nealbridges/VulnHunter",
   "title": "VulnHunter fix-verification disposition",
   "description": "Per-vulnerability fix-verification verdict written by the /vulnhunt-fix-verify skill at <out>/verify_disposition.json on every successful run. The skill is read-only over the target repo; verdicts are based on static reasoning over the supplied checkout. Defined by docs/vulnhunt-fix-verify-design.md §9.1.",
   "type": "object",

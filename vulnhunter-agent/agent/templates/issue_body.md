@@ -18,7 +18,7 @@
 
 ### Status
 
-**Detected by VulnHunter scan.** No automated fix has been attempted by this stage. Review the proposed fix in the full report and remediate — you can use [`/vulnhunter-fix`](https://github.com/capitalone/vulnhunter) to simplify remediation.
+**Detected by VulnHunter scan.** No automated fix has been attempted by this stage. Review the proposed fix in the full report and remediate — you can use [`/vulnhunter-fix`](https://github.com/nealbridges/VulnHunter) to simplify remediation.
 
 ### Proposed Fix
 

@@ -150,7 +150,7 @@ class TestRenderBody:
             report=_report(),
             report_url="https://example/README.md",
         )
-        assert "https://github.com/capitalone/vulnhunter" in body
+        assert "https://github.com/nealbridges/VulnHunter" in body
         assert "/vulnhunter-fix" in body
 
     def test_report_access_message_is_generic(self) -> None:
