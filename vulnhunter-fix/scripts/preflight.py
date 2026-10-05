@@ -4,7 +4,7 @@ VulnHunter Fix — Preflight Check
 
 Verifies LOCAL system requirements before running the pipeline. Does
 not make any network calls — auth + reachability are verified by the
-prompt via Claude's Bash tool (which has the working network context
+prompt via the agent harness's shell tool (which has the working network context
 this Python process doesn't).
 
 Run from CWD = the user's target repo for in-place mode, or any cwd
@@ -94,20 +94,27 @@ def check_gh_cli():
         check("gh CLI", False, "cannot determine version")
 
 
-def check_claude_cli():
-    claude = shutil.which("claude")
-    if not claude:
-        check("Claude CLI", False, "not found in PATH")
+def check_agent_cli():
+    # The skill runs inside whatever harness invoked it. Pass when any known
+    # harness CLI can report a version. Do not stop at the first name on PATH:
+    # a present-but-broken binary must not hide a working one.
+    names = ("omp", "codex", "claude", "aider")
+    present = [name for name in names if shutil.which(name)]
+    if not present:
+        check("agent CLI", False, "no agent harness CLI (omp/codex/claude/aider) found in PATH")
         return
-    try:
-        # `claude --version` may shell out through the CLI's own network path;
-        # cap at 5s so a hung network call doesn't wedge preflight.
-        out = subprocess.check_output(
-            ["claude", "--version"], text=True, stderr=subprocess.DEVNULL, timeout=5,
-        ).strip()
-        check(f"Claude CLI ({out})" if out else "Claude CLI", True)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        check("Claude CLI", False, "cannot determine version")
+    for harness in present:
+        try:
+            # `<harness> --version` may shell out through the CLI's own network
+            # path; cap at 5s so a hung network call doesn't wedge preflight.
+            out = subprocess.check_output(
+                [harness, "--version"], text=True, stderr=subprocess.DEVNULL, timeout=5,
+            ).strip()
+            check(f"agent CLI ({harness}: {out})" if out else f"agent CLI ({harness})", True)
+            return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+    check("agent CLI", False, "found " + ", ".join(present) + " but none reported a version")
 
 
 def _free_disk_bytes(path: str) -> int:
@@ -267,7 +274,7 @@ def check_in_place_mode(repo_root: str | None = None):
     """Run the in-place-mode-specific local checks.
 
     No network — `gh auth` and repo-access verification happen in the
-    SKILL.md prompt via Claude's Bash tool (which has the working
+    SKILL.md prompt via the agent harness's shell tool (which has the working
     network context Python doesn't).
 
     ``repo_root`` may be passed in by the caller to avoid re-running
@@ -385,7 +392,7 @@ def main():
     check_python()
     check_git()
     check_gh_cli()
-    check_claude_cli()
+    check_agent_cli()
 
     print("\nRemediation-rigor (Bundle 2 + 6):")
     check_graphifyy()
@@ -409,7 +416,7 @@ def main():
     print(f"Results: {CHECKS_PASSED} passed, {CHECKS_FAILED} failed")
     print(
         "Note: gh auth + GitHub reachability are checked separately "
-        "via the prompt's Bash tool (Python subprocess can't talk to "
+        "via the prompt's shell tool (Python subprocess can't talk to "
         "GitHub in this environment)."
     )
 
@@ -434,8 +441,9 @@ def _print_bootstrap_hint():
         pass
     else:
         return  # Deps ARE importable — some other check is failing; no hint needed.
-
-    skill_dir = os.path.expanduser("~/.claude/skills/vulnhunter-fix")
+    # Derive the installed skill dir from this file's own location so the
+    # hint is correct regardless of which harness/skills dir installed us.
+    skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     skill_installed = os.path.isfile(os.path.join(skill_dir, "SKILL.md"))
     # install.sh/install.cmd live at the repo root and are never copied into
     # the installed skill dir by either installer, so the remediation hint

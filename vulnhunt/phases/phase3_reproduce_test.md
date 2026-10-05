@@ -46,8 +46,8 @@ format based on context:
 The runnable form below is **only usable when the kickoff prompt says
 "Bash is AVAILABLE for exploit-test execution"** (i.e. the operator
 passed `--no-read-only --enable-bash`). Otherwise produce only the
-Static Data Flow Trace form further down — the model has no Bash tool
-to invoke it and the runnable script is illustrative only.
+Static Data Flow Trace form further down — the shell is not available
+in this mode, so the runnable script is illustrative only.
 
 ```bash
 #!/bin/bash

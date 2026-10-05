@@ -13,4 +13,4 @@ Validated via TDD:
 - Security test PASSES after fix (secure)
 
 VulnHunter-Finding: {VULN_ID}
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)

@@ -1,7 +1,7 @@
 """Tests for the in-place mode addition in scripts/preflight.py.
 
 Preflight is local-only now (no network calls — auth + reachability
-are done by the prompt's Bash tool, which has the working network
+are done by the prompt's shell tool, which has the working network
 context Python doesn't). So these tests only exercise filesystem +
 git probes.
 """
@@ -145,7 +145,7 @@ class TestProbeSkipping:
         repo = _init_repo(tmp_path, origin="https://github.com/a/b.git")
         monkeypatch.chdir(repo)
         for fn in (
-            "check_python", "check_git", "check_gh_cli", "check_claude_cli",
+            "check_python", "check_git", "check_gh_cli", "check_agent_cli",
             "check_memory", "check_disk_space", "check_in_place_mode",
         ):
             monkeypatch.setattr(preflight, fn, lambda *a, **kw: None)
@@ -162,7 +162,7 @@ class TestProbeSkipping:
     def test_probe_runs_when_fork_mode(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
         for fn in (
-            "check_python", "check_git", "check_gh_cli", "check_claude_cli",
+            "check_python", "check_git", "check_gh_cli", "check_agent_cli",
             "check_memory", "check_disk_space", "check_in_place_mode",
         ):
             monkeypatch.setattr(preflight, fn, lambda *a, **kw: None)
@@ -250,19 +250,19 @@ class TestNoNetworkProbesInMain:
         assert not hasattr(preflight, "check_gh_auth"), (
             "check_gh_auth was removed because urllib subprocesses "
             "can't reach GitHub in the target environments; auth is "
-            "now verified by the prompt's Bash tool."
+            "now verified by the prompt's shell tool."
         )
 
     def test_main_has_no_check_network(self):
         assert not hasattr(preflight, "check_network"), (
             "check_network was removed for the same reason as "
             "check_gh_auth — network verification now lives in the "
-            "prompt's Bash tool."
+            "prompt's shell tool."
         )
 
     def test_main_has_no_check_repo_access(self):
         assert not hasattr(preflight, "_check_repo_access"), (
             "_check_repo_access was removed; repo access surfaces "
             "via downstream `gh pr create` / `gh issue close` calls "
-            "from the prompt's Bash tool."
+            "from the prompt's shell tool."
         )

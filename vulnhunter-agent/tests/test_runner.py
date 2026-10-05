@@ -116,14 +116,23 @@ def _patch_skill_candidates(
     container: Path,
     home: Path,
 ) -> None:
-    """Redirect _vulnhunt_skill_path's two candidate roots to the given paths."""
+    """Redirect _vulnhunt_skill_path's two candidate roots to the given paths.
+
+    Also clears VULNHUNT_SKILLS_DIR so the container default literal is the
+    first candidate regardless of the ambient environment.
+    """
+    monkeypatch.delenv("VULNHUNT_SKILLS_DIR", raising=False)
     real_path_cls = runner_mod.Path
 
     class _PathWrapper:
         # Behaves like Path: passthrough construction except for the special
         # container literal, plus a home() classmethod returning ``home``.
         def __new__(cls, *args: object, **kwargs: object) -> Path:  # type: ignore[misc]
-            if len(args) == 1 and str(args[0]) == "/home/appuser/.claude/skills/vulnhunt":
+            if (
+                len(args) == 1
+                and str(args[0])
+                == "/home/appuser/.claude/skills"  # container default root
+            ):
                 return container
             return real_path_cls(*args, **kwargs)  # type: ignore[arg-type]
 
@@ -138,9 +147,12 @@ class TestVulnhuntSkillPath:
     def test_container_path_takes_priority(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        container = tmp_path / "container" / ".claude" / "skills" / "vulnhunt"
-        container.mkdir(parents=True)
-        (container / "SKILL.md").write_text("ok")
+        # The runner's first candidate is <root>/vulnhunt where <root> is
+        # $VULNHUNT_SKILLS_DIR or the container default /home/appuser/.claude/skills
+        # (patched to ``container`` below). SKILL.md therefore lives one level down.
+        container = tmp_path / "container" / ".claude" / "skills"
+        (container / "vulnhunt").mkdir(parents=True)
+        (container / "vulnhunt" / "SKILL.md").write_text("ok")
 
         home = tmp_path / "home"
         home_skill = home / ".claude" / "skills" / "vulnhunt"
@@ -148,7 +160,7 @@ class TestVulnhuntSkillPath:
         (home_skill / "SKILL.md").write_text("home wins by default")
 
         _patch_skill_candidates(monkeypatch, container=container, home=home)
-        assert _vulnhunt_skill_path() == container
+        assert _vulnhunt_skill_path() == container / "vulnhunt"
 
     def test_home_path_when_container_missing(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

@@ -1,7 +1,6 @@
 # VulnHunter (`/vulnhunt`)
 
-The core VulnHunter scanner skill for [Claude Code](https://docs.claude.com/en/docs/claude-code).
-It maps every user-controllable input in a codebase, traces each one *forward*
+The core VulnHunter scanner skill. It maps every user-controllable input in a codebase, traces each one *forward*
 to dangerous sinks, runs an adversarial pipeline to disprove weak candidates,
 and emits only findings it can back with an executable proof-of-concept and a
 proposed fix. This is a **prompt-only** skill — `SKILL.md` plus the phase files
@@ -11,7 +10,7 @@ under `phases/`; there is no Python package to install.
 
 This skill ships as part of the [VulnHunter](https://github.com/capitalone/vulnhunter)
 repository. From the repository root, run the shared installer to copy all skills
-(including this one) into `~/.claude/skills/`:
+(including this one) into your harness's skills directory:
 
 ```bash
 ./install.sh      # installs vulnhunt, vulnhunt-fix-verify, and vulnhunter-fix
@@ -22,19 +21,18 @@ repository. From the repository root, run the shared installer to copy all skill
 `find`/`glob` inside subagents. Re-run `./install.sh` after editing any skill
 file to refresh the installed copy.
 
-> **Run on Opus.** The falsification discipline that keeps false positives low
-> depends on frontier Opus-class reasoning. You supply your own model access.
+> **Run on your strongest model.** The falsification discipline that keeps
+> false positives low depends on frontier-tier reasoning. Use the host's most
+> capable reasoning model; you supply your own model access.
 
 ## Usage
 
-```bash
-claude --model opus \
-       --add-dir ~/.claude/skills/vulnhunt \
-       --add-dir ~/.claude/skills/vulnhunt/phases
-
-# then inside the Claude Code session:
+```text
 /vulnhunt
 ```
+
+Invoke `/vulnhunt` from your agent harness (with the skill and its `phases/`
+directory available to the agent, e.g. installed in your skills directory).
 
 The scan writes its artifacts to a `*_VULNHUNT_RESULTS_*` directory (report
 `README.md`, executable PoCs, and exploit tests). VulnHunter **never modifies
@@ -66,8 +64,9 @@ it is cached across the parallel dispatch.
 
 ## Requirements
 
-- The [Claude Code CLI](https://docs.claude.com/en/docs/claude-code),
-  authenticated, running on an Opus model.
+- Your agent harness,
+  authenticated per your provider, running on the host's most capable
+  reasoning model.
 - No Python, no network — the skill is read-only over the target checkout by
   default. (The agent runtime can opt into `--no-read-only --enable-bash` to run
   exploit tests; interactive use stays static.)

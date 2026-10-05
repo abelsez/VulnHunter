@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Model-driven install: this script does not pick a harness. The caller sets
+# VULNHUNT_SKILLS_DIR and VULNHUNT_AGENTS_DIR. When GROK_HOME is set, those
+# are "$GROK_HOME/skills" and "$GROK_HOME/agents". Do not fall back to
+# ~/.grok when GROK_HOME points elsewhere, and do not assume ~/.claude/skills.
+# vh is written to VULNHUNT_BIN_DIR, or ~/.local/bin when that is omitted.
+
 # HOME guard: destinations (and the rm -rf below) derive from HOME. An empty
 # HOME turns "rm -rf $dst" into "rm -rf /.claude/..." — refuse cleanly.
 if [ -z "${HOME:-}" ]; then
@@ -9,7 +15,38 @@ if [ -z "${HOME:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SKILLS_PARENT="$HOME/.claude/skills"
+
+# Ask on a terminal, otherwise require the variable. No harness is the default.
+resolve_dest() {
+    local current="$1"
+    local prompt="$2"
+    local required="$3"
+    if [ -n "$current" ]; then
+        printf '%s\n' "$current"
+        return 0
+    fi
+    if [ -t 0 ]; then
+        local answer
+        read -r -p "$prompt" answer
+        if [ -n "$answer" ]; then
+            printf '%s\n' "$answer"
+            return 0
+        fi
+    fi
+    if [ "$required" = yes ]; then
+        echo "error: set VULNHUNT_SKILLS_DIR to this harness's skills directory and re-run." >&2
+    fi
+    return 1
+}
+
+if ! SKILLS_PARENT="$(resolve_dest "${VULNHUNT_SKILLS_DIR:-${SKILLS_PARENT:-}}" \
+    "Skills directory for this harness (copied, not symlinked): " yes)"; then
+    exit 1
+fi
+if ! AGENTS_DIR="$(resolve_dest "${VULNHUNT_AGENTS_DIR:-}" \
+    "Agents directory for this harness (empty to skip): " no)"; then
+    AGENTS_DIR=""
+fi
 
 # vulnhunter-fix runtime deps. The skill's scripts/_skill_bootstrap.py expects
 # a bundled venv at <skill>/.venv containing these; without it preflight's
@@ -81,6 +118,7 @@ SKILLS=(
     "vulnhunt:$SCRIPT_DIR/vulnhunt"
     "vulnhunt-fix-verify:$SCRIPT_DIR/vulnhunt-fix-verify"
     "vulnhunter-fix:$SCRIPT_DIR/vulnhunter-fix"
+    "vulnhunter-run:$SCRIPT_DIR/vulnhunter-run"
 )
 
 # Create the parent skills directory if missing.
@@ -136,10 +174,28 @@ for entry in "${SKILLS[@]}"; do
     installed_any=1
 done
 
+if [ -n "$AGENTS_DIR" ]; then
+    mkdir -p "$AGENTS_DIR"
+    cp "$SCRIPT_DIR/agents/vulnhunter.md" "$AGENTS_DIR/vulnhunter.md"
+    echo "Installed agent definition to $AGENTS_DIR/vulnhunter.md"
+fi
+
+# vh must be on PATH. The skills call it from checkouts that are not this repo.
+BIN_DIR="${VULNHUNT_BIN_DIR:-$HOME/.local/bin}"
+mkdir -p "$BIN_DIR"
+cat > "$BIN_DIR/vh" << EOF
+#!/bin/sh
+# vulnhunter-vh repo=$SCRIPT_DIR
+export PYTHONPATH="$SCRIPT_DIR\${PYTHONPATH:+:\$PYTHONPATH}"
+exec python3 -m vh "\$@"
+EOF
+chmod +x "$BIN_DIR/vh"
+echo "Installed vh to $BIN_DIR/vh"
+
 echo ""
 if [ "$installed_any" -eq 1 ]; then
     echo "To update after pulling changes: re-run ./install.sh"
-    echo "To uninstall: $SCRIPT_DIR/uninstall.sh"
+    echo "To uninstall: VULNHUNT_SKILLS_DIR=$SKILLS_PARENT $SCRIPT_DIR/uninstall.sh"
 else
     echo "No skills were installed."
 fi

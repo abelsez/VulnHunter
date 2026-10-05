@@ -1,6 +1,6 @@
 # VulnHunter Fix-Verify (`/vulnhunt-fix-verify`)
 
-A standalone, **read-only** verification skill for [Claude Code](https://docs.claude.com/en/docs/claude-code).
+A standalone, **read-only** verification skill.
 Given a prior `/vulnhunt` scan and a developer's claim that certain findings are
 fixed, it inspects the supplied code checkout and emits an **independent
 per-finding verdict**. The developer's word is not evidence; the code is. This
@@ -11,7 +11,7 @@ under `phases/`; there is no Python package to install.
 
 This skill ships as part of the [VulnHunter](https://github.com/capitalone/vulnhunter)
 repository. From the repository root, run the shared installer to copy all skills
-(including this one) into `~/.claude/skills/`:
+(including this one) into your harness's skills directory:
 
 ```bash
 ./install.sh      # installs vulnhunt, vulnhunt-fix-verify, and vulnhunter-fix
@@ -22,8 +22,9 @@ repository. From the repository root, run the shared installer to copy all skill
 `find`/`glob` inside subagents. Re-run `./install.sh` after editing any skill
 file to refresh the installed copy.
 
-> **Run on Opus.** Independent verification requires the same reasoning class as
-> the scan it checks. You supply your own model access.
+> **Run on your strongest model.** Independent verification requires the same
+> reasoning class as the scan it checks — use the host's most capable reasoning
+> model. You supply your own model access.
 
 ## Tool envelope (why it's safe)
 
@@ -41,15 +42,14 @@ Glob, Grep, Agent** — with **no Bash and no network**. Consequences:
 
 ## Usage
 
-```bash
-claude --model opus \
-       --add-dir ~/.claude/skills/vulnhunt-fix-verify \
-       --add-dir ~/.claude/skills/vulnhunt-fix-verify/phases
-
-# then inside the Claude Code session:
+```text
 /vulnhunt-fix-verify repo=<abs> report=<abs> fixed=VULN-001,VULN-003 out=<abs> \
                      [comments=<abs>] [additional_repos=<abs1>,<abs2>,...]
 ```
+
+Invoke `/vulnhunt-fix-verify` from your agent harness (with the skill and its
+`phases/` directory available to the agent, e.g. installed in your skills
+directory).
 
 | Argument | Required | Meaning |
 |----------|----------|---------|
@@ -74,9 +74,9 @@ instructions.
 
 ## Requirements
 
-- The [Claude Code CLI](https://docs.claude.com/en/docs/claude-code),
-  authenticated, running on an Opus model.
-- No Python, no network — verification is purely static over the trusted roots.
+- Your agent harness,
+  authenticated per your provider, running on the host's most capable reasoning
+  model.
 
 ## License
 

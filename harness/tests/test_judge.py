@@ -1,6 +1,5 @@
 """Tests for local_harness.benchmark.judge."""
 
-import subprocess
 import types
 
 import local_harness.benchmark.judge as judge
@@ -55,34 +54,34 @@ def test_parse_judge_output_non_list_json():
 
 
 def test_judge_findings_batch_success(monkeypatch):
-    monkeypatch.setattr(judge.subprocess, "run",
+    monkeypatch.setattr(judge, "_invoke_judge",
                         lambda *a, **k: _proc(0, stdout='[{"finding_id":"F1","detected":true},{"finding_id":"F2","detected":false}]'))
     out = judge.judge_findings_batch("report", FINDINGS, model="m")
     assert out[0]["detected"] is True
     assert out[1]["detected"] is False
 
 
-def test_judge_findings_batch_default_model(monkeypatch):
+def test_judge_findings_batch_passes_model(monkeypatch):
     captured = {}
 
-    def fake_run(cmd, **k):
-        captured["cmd"] = cmd
+    def fake_invoke(prompt, model):
+        captured["model"] = model
         return _proc(0, stdout="[]")
-    monkeypatch.setattr(judge.subprocess, "run", fake_run)
-    judge.judge_findings_batch("report", FINDINGS)
-    assert judge.MODEL in captured["cmd"]
+    monkeypatch.setattr(judge, "_invoke_judge", fake_invoke)
+    judge.judge_findings_batch("report", FINDINGS, model="served-model")
+    assert captured["model"] == "served-model"
 
 
 def test_judge_findings_batch_timeout(monkeypatch):
     def boom(*a, **k):
-        raise subprocess.TimeoutExpired(cmd="claude", timeout=1)
-    monkeypatch.setattr(judge.subprocess, "run", boom)
+        raise TimeoutError("timed out")
+    monkeypatch.setattr(judge, "_invoke_judge", boom)
     out = judge.judge_findings_batch("report", FINDINGS)
     assert all(j["reasoning"] == "judge timed out" for j in out)
 
 
 def test_judge_findings_batch_nonzero_non429(monkeypatch):
-    monkeypatch.setattr(judge.subprocess, "run",
+    monkeypatch.setattr(judge, "_invoke_judge",
                         lambda *a, **k: _proc(2, stderr="boom error"))
     out = judge.judge_findings_batch("report", FINDINGS)
     assert all("judge failed" in j["reasoning"] for j in out)
@@ -91,12 +90,12 @@ def test_judge_findings_batch_nonzero_non429(monkeypatch):
 def test_judge_findings_batch_429_then_success(monkeypatch):
     calls = {"n": 0}
 
-    def fake_run(*a, **k):
+    def fake_invoke(*a, **k):
         calls["n"] += 1
         if calls["n"] == 1:
             return _proc(1, stderr="429 rate_limit")
         return _proc(0, stdout='[{"finding_id":"F1","detected":true},{"finding_id":"F2","detected":true}]')
-    monkeypatch.setattr(judge.subprocess, "run", fake_run)
+    monkeypatch.setattr(judge, "_invoke_judge", fake_invoke)
     monkeypatch.setattr(judge.time, "sleep", lambda s: None)
     out = judge.judge_findings_batch("report", FINDINGS)
     assert calls["n"] == 2
@@ -104,9 +103,7 @@ def test_judge_findings_batch_429_then_success(monkeypatch):
 
 
 def test_judge_findings_batch_429_exhausted(monkeypatch):
-    # On the final attempt the 429 branch returns the specific
-    # retries-exhausted message rather than the generic failure text.
-    monkeypatch.setattr(judge.subprocess, "run",
+    monkeypatch.setattr(judge, "_invoke_judge",
                         lambda *a, **k: _proc(1, stderr="429 rate_limit"))
     monkeypatch.setattr(judge.time, "sleep", lambda s: None)
     monkeypatch.setattr(judge, "JUDGE_MAX_RETRIES", 1)

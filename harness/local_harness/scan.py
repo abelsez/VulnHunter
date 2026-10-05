@@ -2,8 +2,10 @@
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from collections import namedtuple
@@ -12,8 +14,6 @@ from datetime import datetime
 
 from .config import (
     MAX_SCAN_WORKERS,
-    MODEL,
-    PHASES_DIR,
     SCAN_MAX_RETRIES,
     SCAN_RETRY_BACKOFF_MULTIPLIER,
     SCAN_RETRY_INITIAL_BACKOFF,
@@ -203,17 +203,23 @@ def scan_folder(folder_path, log_file=None, readonly=False):
     print(f"  [{ts()}] [{label}] STARTING scan", flush=True)
     start = time.time()
 
+    host = os.environ.get("VULNHUNT_HOST_CMD", "").strip()
+    if not host:
+        print(
+            f"  [{ts()}] [{label}] Error: VULNHUNT_HOST_CMD is not set. "
+            "Set it to this harness's headless one-shot. The prompt file "
+            "path is appended as the last argument.",
+            flush=True,
+        )
+        return ScanResult(folder_path, label, 2, 0, 0, None, {})
+
+    prompt_dir = tempfile.mkdtemp(prefix="vulnhunt-prompt-")
+    prompt_file = os.path.join(prompt_dir, "prompt.txt")
+    with open(prompt_file, "w") as handle:
+        handle.write(prompt)
+    argv = shlex.split(host) + [prompt_file]
     proc = subprocess.Popen(
-        ["claude", "-p", prompt,
-         "--output-format", "stream-json",
-         "--verbose",
-         "--allowedTools", "Read", "Write", "Edit", "Bash", "Agent",
-         "--permission-mode", "acceptEdits",
-         "--model", MODEL,
-         "--add-dir", folder_path,
-         "--add-dir", os.path.dirname(folder_path),
-         "--add-dir", SKILLS_DIR,
-         "--add-dir", PHASES_DIR],
+        argv,
         stdout=subprocess.PIPE,
         # Merge stderr into stdout (which we drain below) rather than piping it
         # to its own buffer no one reads — an unread stderr pipe deadlocks the
@@ -253,6 +259,7 @@ def scan_folder(folder_path, log_file=None, readonly=False):
                     print(f"  [{ts()}] [{label}] ... {event_count} events", flush=True)
     finally:
         timer.cancel()
+        shutil.rmtree(prompt_dir, ignore_errors=True)
 
     proc.wait()
     elapsed = time.time() - start

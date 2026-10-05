@@ -134,7 +134,7 @@ After all findings are finalized, create `${VULNHUNT_DIR}/README.md` as the entr
 
 Field definitions:
 - **Run ID** = basename of `VULNHUNT_DIR` (the results folder name, e.g.
-  `smartops-cli_VULNHUNT_RESULTS_opus46_1m_2026-05-14-072642`).
+  `smartops-cli_VULNHUNT_RESULTS_2026-05-14-072642`).
 - **Repository** = the `Repository URL` value supplied in the /vulnhunt
   kickoff prompt's pre-resolved metadata block. The agent layer already
   normalized SSH origins to https and stripped any `.git` suffix; use the
@@ -142,7 +142,7 @@ Field definitions:
 - **Branch** = the `VULNHUNT_BRANCH` value supplied in the same metadata
   block. Format: `branch-name [abc1234]`, or `unknown` if the source
   isn't a git repo. Do not run git to recompute.
-- **Model** = the model used (e.g. `claude-opus-4-8`).
+- **Model** = the model identifier reported by your host harness (e.g. the current model ID).
 
 After the header, include:
 - Summary table of findings (ID, title, severity, CWE, status)

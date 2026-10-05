@@ -1,5 +1,15 @@
 # VulnHunter
 
+> [!NOTE]
+> **A maintained fork** of [Capital One's
+> VulnHunter](https://github.com/capitalone/VulnHunter) (Apache-2.0) — built to
+> run on **any agent harness**, not just Claude Code. This fork's focus:
+> **harness portability**, **sandboxed (containerized) exploit validation**,
+> and **measured-impact PoCs**. See
+> [Why the changes](#why-the-changes) ·
+> [What this fork changes](#what-this-fork-changes) ·
+> [The numbers](#the-numbers-behind-the-fork).
+
 > **From pattern-matching to provability.**
 
 VulnHunter is an open-source, **agentic AI security tool** that applies proactive, attacker-first analysis directly to source code. 
@@ -8,34 +18,103 @@ Unlike traditional, passive SAST scanners that flag suspicious patterns and ofte
 
 Modern software supply chains are deeply interconnected. A single vulnerability in a widely-used open-source component can ripple across thousands of enterprises simultaneously.
 
-Developed internally at Capital One, VulnHunter is released to the community because no single organization can solve this challenge alone.
+VulnHunter was developed internally at Capital One and open-sourced for the community. This fork carries that work forward — same methodology, reworked to run on **any agent harness**, with **sandboxed (containerized) exploit validation** and **measured-impact PoCs** as the roadmap. See [What this fork changes](#what-this-fork-changes).
 
 ----
 
-> [!WARNING]
-> **Cyber-safeguard disclaimer**
-> VulnHunter performs dual-use cybersecurity work (vulnerability discovery and exploitation). If you run it against an Anthropic account that is **not** enrolled in Anthropic's [Cyber Verification Program](https://support.claude.com/en/articles/14604842-real-time-cyber-safeguards-on-claude), real-time cyber safeguards may block requests and your usage may be flagged for cyber abuse. If you intend to use VulnHunter on Anthropic's first-party platforms (Claude API / Claude Code), we strongly recommend enrolling first via the [verification portal](https://portal.anthropic.com/programs/cvp).
+> **Dual-use caution**
+> VulnHunter performs dual-use cybersecurity work (vulnerability discovery and
+> exploitation). Expect guardrails: most commercially available models apply
+> dual-use cyber safeguards, and aggressive exploitation behavior can trip
+> rate limits or usage flags. VulnHunter's development and testing ran on
+> open-weight, community-provided models — de-risked, abliterated, and
+> uncensored — which are the models likely to matter for organizational use
+> going forward. Audit only code you own or are otherwise authorized to
+> audit.
 
 ---
 
 > [!IMPORTANT]
 > **Prerequisites & Model Requirements**
-> Built and optimized for **Claude Opus** running in **[Claude Code](https://docs.claude.com/en/docs/claude-code)**. 
-> The framework depends on deep, multi-step reasoning and requires frontier Opus-class models. **You supply your own model access.**
+> VulnHunter's methodology is built to run on **open-weight, community-provided
+> models** — the de-risked, abliterated, uncensored ones organizations can
+> actually deploy. A capable reasoning model is required; the strongest model
+> your harness offers gives the best results, but the methodology does not
+> depend on a specific vendor's frontier model. **You supply your own model
+> access.**
+
+---
+
+## What this fork changes
+
+| Capability | Upstream (Capital One) | This fork | Status |
+| :--- | :--- | :--- | :--- |
+| **Harness portability** | Skills invoke Claude Code specifically; installer targets `~/.claude/skills`; model gates hardcode Opus; harness pins `claude-opus-4-8` | Skills are harness-portable prompt files (any harness with a skills directory + subagents); `VULNHUNT_SKILLS_DIR` / `VULNHUNT_AGENTS_DIR` / `VULNHUNT_BIN_DIR` / `VULNHUNT_HOST_CMD` / `VULNHUNT_MODEL` environment contract; model gates rephrased to "your harness's most capable reasoning model" | **Shipped** |
+| **No-guess installer** | `install.sh` assumes `~/.claude/skills` | Explicit directories, honors `GROK_HOME` semantics, writes the `vh` launcher to `VULNHUNT_BIN_DIR`/`~/.local/bin`, installs the `vulnhunter-run` skill + agent definition; Windows `.cmd` equivalents updated | **Shipped** |
+| **`vulnhunter-run` operator skill** | — (absent) | Unattended operator: clone → hunt → find-results → write/validate the scan manifest, with explicit stop rules and no improvisation | **Shipped** |
+| **Benchmark/judge hardening** | Fixed model + basic retry | Model via environment, retry/backoff configuration, `analyze_misses` pipeline loss-point tracing, per-finding history tracking | **Shipped** |
+| **Harness-neutral report language** | Claude-specific prose throughout the skills | Harness-neutral tool language (Agent → subagent, Claude CLI → harness session) | **Shipped** |
+| **Sandbox-first exploit validation** | Exploit tests may be static traces; runtime choice ad hoc | Docker-first runtime provisioning; the runtime recorded per finding; Medium+ severity must execute | **In progress** |
+| **Measured-impact PoCs** | PoCs are documents; impact asserted | Executable PoC + impact number in the finding (rows exposed, requests amplified, key-hours stranded) | **In progress** |
+
+## Why the changes
+
+VulnHunter's methodology is host-agnostic by nature: it is prompt procedure, not tool binding. The upstream project grew up inside Claude Code — a coherent choice, and the right first home. But the agent-harness landscape has broadened, and a security methodology that installs into only one of them stops being an audit capability and starts being a vendor feature. This fork makes four changes, each with a reason.
+
+### 1. Harness portability — your team's harness is not our harness
+
+Every skill here is a portable prompt file with an explicit environment contract (`VULNHUNT_SKILLS_DIR`, `VULNHUNT_AGENTS_DIR`, `VULNHUNT_MODEL`, `VULNHUNT_HOST_CMD`), and the model gates now ask for *your harness's most capable reasoning model* instead of a specific product. **Better means:** the same methodology installs into whatever harness your team already runs — and becomes comparable *across* harnesses in benchmark runs, which is how this fork is developed.
+
+### 2. A no-guess installer — "where do skills go" is a per-harness answer
+
+The upstream installer copied skills into `~/.claude/skills` unconditionally. On a machine running two harnesses — or a harness with a relocated home — that guess installs into the wrong place, silently. The fork's installer asks, or takes environment variables, and fails loudly with the exact instruction when the answer is missing. **Better means:** safe on multi-harness machines, correct under relocated homes, loud instead of silent when misconfigured.
+
+### 3. Execution depth as a recorded decision — "provability" should not depend on model instinct
+
+The original design already demands falsification and exploit tests. What it left open was *how hard* to work to actually execute them: static trace, mocked test, or a real containerized server. In one six-run benchmark against a single commit, that discretion produced anywhere from 3 to 42 findings — and opposite verdicts on the same sink, one proven against a mock, one closed by a test against a real server. This fork adds a runtime-provisioning procedure (Docker-first, recorded per finding) and a PoC discipline where impact is **measured** — rows leaked, ×-amplification, key-hours stranded — not narrated. **Better means:** a finding's validity no longer depends on which model had the instinct to stand up a container. *(In progress — the build plan is on the public roadmap; ask in issues or watch the repo's Discussions.)*
+
+### 4. Operator ergonomics — a remediation loop compounds when it runs nightly
+
+New in this fork: `vulnhunter-run`, an unattended operator that clones, hunts, locates results, and writes and validates the scan manifest with explicit stop rules. The benchmark tooling gains model configuration via environment, retry/backoff knobs, and loss-point analysis for missed findings. **Better means:** the difference between a tool you demo and a tool you schedule.
+
+## The numbers behind the fork
+
+We benchmark VulnHunter against itself: six full scans of one real production Go service — same commit, five harness/model stacks. The numbers below are from those runs, and they're why this fork exists.
+
+| | |
+|---|---|
+| **14×** | spread in confirmed findings across runs of the same commit. The process measuring itself was the first vulnerability — closing that gap is this fork's build plan. |
+| **42/42** | confirmed findings carried executable exploit tests — every one PASS, every one with its own PoC. No finding ships on a hunch. |
+| **55%** | of candidate findings eliminated or downgraded by the adversarial verification pass before reaching you. Others scan. VulnHunter litigates. |
+| **315** | attacker-controlled inputs inventoried in a single scan — every one traced, every disposition written. Completeness is a discipline, not an aspiration. |
+| **20/20** | adversarial payloads executed against a live server in one run — outcome-measured, not asserted. |
+
+<details>
+<summary><strong>Where these numbers come from</strong></summary>
+
+Six complete VulnHunter scans were run against one commit of the same
+production Go service, across five harness/model stacks, over roughly three
+weeks. Every figure above traces to retained scan artifacts — per-input
+disposition tables, adversarial verdict tables, PoCs, and executed exploit
+tests. Raw outputs are retained by the maintainer; ask, or re-run it
+yourself.
+
+</details>
 
 ---
 
 ## Why VulnHunter is Different
 
 * **Attacker-First Forward Analysis:** Conventional tools often leverage "sink-first" analysis, looking at potentially dangerous code patterns to search backward for a hypothetical attacker, flooding teams with false positives. VulnHunter flips this model to simulate a bad actor's exact journey. It begins at potential attacker-accessible entry points (APIs, network messages, file uploads) and reasons *forward* to evaluate whether an attacker can truly break through.
-* **Falsification Engine:** After finding a potential vulnerability, VulnHunter runs a structured reasoning workflow specifically designed to *disprove* its own argument. It searches for flawed assumptions, logic gaps, or security controls that would block the attack. It is designed to immediately discard findings that rely on unsupported assumptions. What reaches you is a high-priority, actionable defect.
+* **Falsification Engine:** After finding a potential vulnerability, VulnHunter runs a structured reasoning workflow specifically designed to *disprove* its own argument. It searches for flawed assumptions, logic gaps, or security controls that would block the attack. It is designed to immediately discard findings that rely on unsupported assumptions. What reaches you is a high-priority, actionable defect. On the roadmap: an **independent adversarial verifier** — a separate agent whose only job is to disprove the finding, rather than asking the hunter to grade its own homework (see the build plan).
 * **Evidence-Backed Remediation:** When a defect survives the falsification engine, VulnHunter maps the exact exploit path, explains the structural flaw, details the specific capabilities or access an attacker would gain, and generates focused, targeted code changes for review.
+* **PoC or It Didn't Happen:** A vulnerability isn't a vulnerability until it's *proven*. Every confirmed finding carries a proof-of-concept — ideally executed, with the impact **measured** (rows exposed, requests amplified, credentials stranded) rather than narrated. Findings without working PoCs are labeled as such, so you always know what you're looking at.
 
 ---
 
 ## The Closed Loop: Hunt → Fix → Verify
 
-VulnHunter ships as three composable [Claude Code](https://docs.claude.com/en/docs/claude-code) skills that form a complete, automated remediation loop:
+VulnHunter ships as three composable agent skills that form a complete, automated remediation loop:
 
 | Skill | Phase | Core Responsibility |
 | :--- | :--- | :--- |
@@ -66,7 +145,7 @@ Each component is organized into a self-contained subtree:
 ## Requirements & Setup
 
 ### Prerequisites
-* [Claude Code CLI](https://docs.claude.com/en/docs/claude-code), authenticated with access to **Claude Opus**.
+* An agent harness (e.g. Claude Code, omp, Codex, or similar) with access to a capable reasoning model — open-weight, community-provided models are the primary development target. **You supply your own model access.**
 * Python 3.12+ (Required only for the runtime agent and the benchmarking harness).
 * *Responsibility Check:* Ensure you are only scanning code bases you are explicitly authorized to analyze.
 
@@ -74,23 +153,26 @@ Each component is organized into a self-contained subtree:
 
 ```bash
 # Clone the repository
-git clone https://github.com/capitalone/vulnhunter.git
-cd vulnhunter
+git clone https://github.com/nealbridges/VulnHunter.git
+cd VulnHunter
 
-# Copy skills into ~/.claude/skills/
-./install.sh      
-
-# (Optional) To clean up or remove installed skills
-# ./uninstall.sh    
+# Skills and agents directories are required. This script does not guess.
+# If GROK_HOME is set, use that home. Do not use ~/.grok when GROK_HOME
+# points somewhere else, and do not use ~/.claude/skills unless this
+# process is Claude Code.
+#   VULNHUNT_SKILLS_DIR="$GROK_HOME/skills" \
+#   VULNHUNT_AGENTS_DIR="$GROK_HOME/agents" \
+#   ./install.sh
+./install.sh
 ```
 
 On Windows, use the `.cmd` equivalents from a `cmd.exe` or PowerShell prompt:
 
 ```bat
-git clone https://github.com/capitalone/vulnhunter.git
-cd vulnhunter
+git clone https://github.com/nealbridges/VulnHunter.git
+cd VulnHunter
 
-REM Copy skills into %USERPROFILE%\.claude\skills\
+REM Set VULNHUNT_SKILLS_DIR to this harness's skills directory first.
 .\install.cmd
 
 REM (Optional) To clean up or remove installed skills
@@ -99,38 +181,43 @@ REM .\uninstall.cmd
 
 > [!NOTE]
 > `install.sh`/`install.cmd` copy files directly (rather than symlinking) because symlinks can break `find`/`glob` functionality inside subagents. Re-run the install script after pulling updates to refresh your local environment.
+>
+> **Any harness:** the skills are plain prompt files. `install.sh` copies them
+> into `VULNHUNT_SKILLS_DIR`, copies `agents/vulnhunter.md` into
+> `VULNHUNT_AGENTS_DIR` when that is set, and writes a `vh` launcher to
+> `VULNHUNT_BIN_DIR` or `~/.local/bin`. `~/.local/bin` has to be on `PATH`.
+> A model installing into the harness it is running uses `$GROK_HOME/skills`
+> and `$GROK_HOME/agents` when `GROK_HOME` is set.
 
 ---
 
 ## Usage Guide
 
 ### 1. Run the Scanner
-```bash
-claude --model opus --add-dir ~/.claude/skills/vulnhunt --add-dir ~/.claude/skills/vulnhunt/phases
+Install the `vulnhunt` skill into your harness (see above), open a session on the host's most capable reasoning model, and invoke:
 
-# Inside the Claude Code session, invoke:
+```text
 /vulnhunt
 ```
+
+The skill also loads `vulnhunt/phases/`. If your harness does not follow a skill's subdirectories on its own, add that `phases/` directory to the session the same way you add any other path.
 
 ### 2. Run the Fixer
 The fixer requires `git`, the GitHub CLI (`gh`) authenticated to your target repositories, and its Python helpers installed (`pip install -e ".[dev]"` inside the `vulnhunter-fix/` directory).
 
-```bash
-claude --model opus --add-dir ~/.claude/skills/vulnhunter-fix
+Install the `vulnhunter-fix` skill and invoke:
 
-# Inside the Claude Code session, invoke:
+```text
 /vulnhunter-fix
 ```
 *See [`vulnhunter-fix/README.md`](vulnhunter-fix/README.md) for advanced operational modes and configuration settings.*
 
 ### 3. Run the Fix Verifier
-The verifier runs strictly read-only over trusted roots under a tight tool envelope (Read/Write/Edit/Glob/Grep/Agent—**no Bash execution, no network access**). The caller must pre-create the output (`out`) directory.
+The verifier runs strictly read-only over trusted roots under a tight tool envelope (Read/Write/Edit/Glob/Grep/subagent — **no shell execution, no network access**). The caller must pre-create the output (`out`) directory.
 
-```bash
-claude --model opus --add-dir ~/.claude/skills/vulnhunt-fix-verify \
-       --add-dir ~/.claude/skills/vulnhunt-fix-verify/phases
+Install the `vulnhunt-fix-verify` skill (it reads `vulnhunt-fix-verify/phases/`) and invoke:
 
-# Inside the Claude Code session, invoke:
+```text
 /vulnhunt-fix-verify repo=<abs_path> report=<abs_path> fixed=VULN-001,... out=<abs_path> [comments=<abs_path>] [additional_repos=<path1>,<path2>]
 ```
 
@@ -139,7 +226,7 @@ claude --model opus --add-dir ~/.claude/skills/vulnhunt-fix-verify \
 ## Automation & Scale
 
 ### Headless Runtime Agent (`vulnhunter-agent/`)
-For non-interactive or CI/CD pipelines, `vulnhunter-agent/` wraps the scanner into a headless workflow. It clones targets, executes `/vulnhunt`, publishes results, and opens GitHub issues for confirmed bugs. It connects natively via the direct Anthropic API. 
+For non-interactive or CI/CD pipelines, `vulnhunter-agent/` wraps the scanner into a headless workflow. It clones targets, executes `/vulnhunt`, publishes results, and opens GitHub issues for confirmed bugs. Model and credential wiring for that runtime live in its own README; the skills above do not depend on it. 
 
 Review the [`vulnhunter-agent/README.md`](vulnhunter-agent/README.md) for deployment blueprints.
 
@@ -184,7 +271,7 @@ cd vulnhunter-agent && pip install -e ".[dev]" && python -m pytest -q
 
 ## Contributing, Security & License
 
-* **A Note on Models:** VulnHunter was precision-tuned for **Claude Opus** and **Claude Code**. Its low false-positive discipline relies heavily on frontier-class reasoning, though the underlying orchestration patterns can be adapted to other advanced foundation models.
+* **A Note on Models:** VulnHunter's methodology is developed against open-weight, community-provided models — de-risked, abliterated, and uncensored — the deployment reality most organizations are heading toward. The skills are harness-portable prompt files that work with any agent harness; only the headless runtime (`vulnhunter-agent/`) and `harness/` remain Claude-Code-based.
 * **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) to propose core framework improvements, prompt updates, or wider model support configurations.
 * **Security:** Review [SECURITY.md](SECURITY.md) for instructions on how to safely report security vulnerabilities found within VulnHunter itself.
 * **License:** Distributed under the terms of the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.

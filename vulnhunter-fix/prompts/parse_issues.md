@@ -51,17 +51,17 @@ Then continue at **Step 5a** with `RESULTS_PATH` as the results directory. Skip 
 >
 > 1. **Trivial extraction** (single field, simple filter): `jq -r .field file.json`. No escapes, no regex. Fine inline.
 > 2. **Small transform you already have everything for** (filter by selected numbers, join two in-context JSONs by key, render a markdown table): the main agent does it directly using the `Write` tool. No subprocess, no extra LLM call.
-> 3. **Large mechanical scan over a big blob** — delegate to a subagent via the `Agent` tool with `subagent_type: "general-purpose"`. Pick the model carefully:
->    - **`model: "haiku"`** for shape-stable transforms over well-defined input (e.g., the Step 3(a) severity annotation: every issue body has the same `**Severity** | <val>` row format).
->    - **`model: "sonnet"`** for shape-variable transforms where the input layout drifts run-to-run (e.g., the Step 5a README extraction: rollup-subsumed findings, multi-CWE rows, varying detail-section field labels — Haiku has dropped findings on real reports). Sonnet costs more per token but is order-of-magnitude more reliable when the input doesn't fit a single pattern.
+> 3. **Large mechanical scan over a big blob** — launch a subagent. Pick its capability tier carefully:
+>    - **A lightweight/cheap model** for shape-stable transforms over well-defined input (e.g., the Step 3(a) severity annotation: every issue body has the same `**Severity** | <val>` row format).
+>    - **A capable mid-tier model** for shape-variable transforms where the input layout drifts run-to-run (e.g., the Step 5a README extraction: rollup-subsumed findings, multi-CWE rows, varying detail-section field labels — lightweight models have dropped findings on real reports). Mid-tier models cost more per token but are order-of-magnitude more reliable when the input doesn't fit a single pattern.
 >
-> When in doubt between Haiku and Sonnet for a subagent transform, **prefer Sonnet** — a missed finding or wrong field value silently propagates through the whole pipeline (re-runs, manual injections, lost work). The Haiku cost saving rarely pays for that.
+> When in doubt between tiers for a subagent transform, **prefer the capable mid-tier model** — a missed finding or wrong field value silently propagates through the whole pipeline (re-runs, manual injections, lost work). The lightweight-model cost saving rarely pays for that.
 >
 > Multi-line `jq` pipelines inside bash heredocs are a fourth option that **we don't use** — they keep biting us on shell quoting (`\!=`, `\\*\\*`, alternation order) and silently drop rows. Move that work up one tier.
 
 ### Step 1: Fetch issues from GitHub (via Bash)
 
-All network calls happen in Bash blocks (Claude's Bash tool has the working TLS context that Python subprocesses don't). Discovery and explicit-URL paths both produce the same shape: a JSON array of issue objects with `number`, `url`, `title`, `body`.
+All network calls happen in Bash blocks (the agent harness shell tool has the working TLS context that Python subprocesses don't). Discovery and explicit-URL paths both produce the same shape: a JSON array of issue objects with `number`, `url`, `title`, `body`.
 
 > **Read the "`git` + `gh` failure policy" section of `SKILL.md` before continuing.** Any `gh` call below that fails with `tls: failed to verify certificate`, `OSStatus -…`, or other transport-level errors means **STOP and ask the user to run the single command in their own terminal**. Do not retry. Do not try `git ls-remote` or `curl` as a substitute. Do not call a different `gh` subcommand hoping it works. The same rule applies to `git` — including the `git clone` of the publish repo in Step 4. One command at a time, wait for the user to paste, then continue.
 
@@ -198,7 +198,7 @@ After this step, `.vulnhunter-fix/intake.json` carries `owner`, `repo`, `results
 
 **Always ask.** Three-part interaction: list, group, choose.
 
-**(a) Annotate intake with severities + show the table.** Delegate this to a Haiku subagent so the main agent doesn't burn Opus/Sonnet tokens iterating over every issue body. Use the `Agent` tool with `subagent_type: "general-purpose"` and `model: "haiku"`.
+**(a) Annotate intake with severities + show the table.** Delegate this to a lightweight/cheap model subagent so the main agent doesn't burn its high-tier token budget iterating over every issue body. Launch the subagent with minimal capability: read and write access only, no shell, no network.
 
 The subagent's job (specify all of this in its `prompt`):
 
@@ -211,7 +211,7 @@ The subagent's job (specify all of this in its `prompt`):
    - `# | Severity | VULN | Title | URL`
    - One row per issue, in the sorted order. VULN comes from `.markers.finding_id`.
 
-Why Haiku and not the main agent: this is mechanical regex + JSON shuffling over a ~90KB blob. Sonnet/Opus would do the same work for ~5x the cost. The subagent has just enough tool access (`Read`, `Write`) to do its job and nothing more.
+Why a lightweight/cheap subagent and not the main agent: this is mechanical regex + JSON shuffling over a ~90KB blob. A higher-tier model would do the same work at many times the token cost. The subagent has just enough tool access (read, write) to do its job and nothing more.
 
 After the subagent returns, **display its response verbatim** — that's the table the user sees. The annotated `intake.json` is already on disk for step 3(b/c) and step 6.
 
@@ -467,11 +467,11 @@ REPORT_PATH="$(cat .vulnhunter-fix/.report_path)"
 
 **Read the report yourself, don't shell out.** `scripts/parse_results.py` exists for the fork path but its regex-based approach has repeatedly missed real-world variants — multi-CWE columns, rollup-subsumed findings that only appear in detail sections, drifted severity tiers. Doing the extraction in your own context handles drift naturally. Fork mode still uses the script as a deterministic fallback; in-place mode does not need it.
 
-**Step 5a: Read the README and produce a draft findings list (Sonnet subagent).**
+**Step 5a: Read the README and produce a draft findings list (capable mid-tier subagent).**
 
-Delegate this to a **Sonnet** subagent via the `Agent` tool (`subagent_type: "general-purpose"`, `model: "sonnet"`). README extraction was originally Haiku-targeted (the upstream `issues_extract.py` uses Haiku for this), but Haiku has proven unreliable on the report layout we see in practice — it drops rollup-subsumed findings, misreads multi-CWE rows, and confuses detail-section field labels. Sonnet handles the same input correctly and the cost delta vs Haiku is small compared to the cost of an incorrect findings list propagating through the rest of the pipeline (re-runs, missed findings, manual injection of corrections).
+Delegate this to a capable mid-tier subagent (launch a subagent for it). README extraction was originally aimed at lightweight/cheap models, but those have proven unreliable on the report layout we see in practice — they drop rollup-subsumed findings, misread multi-CWE rows, and confuse detail-section field labels. A capable mid-tier model handles the same input correctly and the cost delta vs a lightweight model is small compared to the cost of an incorrect findings list propagating through the rest of the pipeline (re-runs, missed findings, manual injection of corrections).
 
-**Important: the subagent has no shell context.** Before invoking `Agent`, the main agent must substitute the actual path of `REPORT_PATH` (read from `.vulnhunter-fix/.report_path`) into the subagent's `prompt` text. Do not pass the literal string `$REPORT_PATH` — the subagent will try to read a file called `$REPORT_PATH/README.md` and fail.
+**Important: the subagent has no shell context.** Before launching the subagent, the main agent must substitute the actual path of `REPORT_PATH` (read from `.vulnhunter-fix/.report_path`) into the subagent's prompt text. Do not pass the literal string `$REPORT_PATH` — the subagent will try to read a file called `$REPORT_PATH/README.md` and fail.
 
 The subagent's job (specify all of this in its `prompt` *with the real absolute path already substituted*):
 
@@ -534,7 +534,7 @@ python3 "${SKILL_DIR}/scripts/validate_findings_draft.py" \
     .vulnhunter-fix/findings.draft.json
 ```
 
-If validation fails, re-invoke the Step 5a Sonnet subagent with the validator's stderr appended to the subagent's prompt as guidance ("your prior output failed validation: <message> — produce a corrected one"). Do NOT proceed to hashing until validation passes.
+If validation fails, re-invoke the Step 5a capable mid-tier subagent with the validator's stderr appended to the subagent's prompt as guidance ("your prior output failed validation: <message> — produce a corrected one"). Do NOT proceed to hashing until validation passes.
 
 ```bash
 REPORT_PATH="$(cat .vulnhunter-fix/.report_path)"
@@ -567,7 +567,7 @@ try:
 except json.JSONDecodeError as exc:
     print(
         f"error: findings.draft.json from Step 5a is not valid JSON ({exc}). "
-        "Re-run Step 5a's Haiku/Sonnet subagent — its output is malformed.",
+        "Re-run Step 5a's extraction subagent — its output is malformed.",
         file=sys.stderr,
     )
     sys.exit(2)

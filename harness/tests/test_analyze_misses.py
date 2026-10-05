@@ -142,6 +142,7 @@ def test_parse_diagnostic_output_invalid():
 
 
 def test_invoke_diagnostic_success(monkeypatch):
+    monkeypatch.setenv("VULNHUNT_HOST_CMD", "host-oneshot")
     monkeypatch.setattr(am.subprocess, "run",
                         lambda *a, **k: _proc(0, stdout='{"root_cause":"rc"}'))
     finding = {"finding_id": "F1", "type": "SQLi", "description": "d", "repo_name": "r"}
@@ -150,6 +151,7 @@ def test_invoke_diagnostic_success(monkeypatch):
 
 
 def test_invoke_diagnostic_timeout(monkeypatch):
+    monkeypatch.setenv("VULNHUNT_HOST_CMD", "host-oneshot")
     def boom(*a, **k):
         raise subprocess.TimeoutExpired(cmd="claude", timeout=1)
     monkeypatch.setattr(am.subprocess, "run", boom)
@@ -159,6 +161,7 @@ def test_invoke_diagnostic_timeout(monkeypatch):
 
 
 def test_invoke_diagnostic_nonzero(monkeypatch):
+    monkeypatch.setenv("VULNHUNT_HOST_CMD", "host-oneshot")
     monkeypatch.setattr(am.subprocess, "run",
                         lambda *a, **k: _proc(3, stderr="boom"))
     finding = {"finding_id": "F1", "type": "SQLi", "description": "d", "repo_name": "r"}

@@ -11,7 +11,12 @@ if "%USERPROFILE%"=="" (
 
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "SKILLS_PARENT=%USERPROFILE%\.claude\skills"
+rem Skills destination. No harness is the default.
+if "%VULNHUNT_SKILLS_DIR%"=="" (
+    echo error: set VULNHUNT_SKILLS_DIR to this harness's skills directory. 1>&2
+    exit /b 1
+)
+set "SKILLS_PARENT=%VULNHUNT_SKILLS_DIR%"
 
 if not exist "%SKILLS_PARENT%" (
     echo Creating directory %SKILLS_PARENT%
@@ -19,7 +24,7 @@ if not exist "%SKILLS_PARENT%" (
 )
 
 set "installed_any=0"
-for %%S in (vulnhunt vulnhunt-fix-verify vulnhunter-fix) do (
+for %%S in (vulnhunt vulnhunt-fix-verify vulnhunter-fix vulnhunter-run) do (
     call :install_one "%%S"
     if errorlevel 1 exit /b 1
 )

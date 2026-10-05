@@ -121,7 +121,7 @@ Remediate CWE-XXX: description
 Validated: test was RED (vulnerable), now GREEN (secure)
 
 VulnHunter-Finding: VULN-NNN
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)
 EOF
 )"
 ```
@@ -512,7 +512,7 @@ Remediate CWE-XXX: description
 Validated: test was RED (vulnerable), now GREEN (secure)
 
 VulnHunter-Finding: VULN-NNN
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)
 EOF
 )"
 ```

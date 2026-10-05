@@ -2,8 +2,10 @@
 
 import json
 import os
-import subprocess
+import socket
 import time
+import urllib.error
+import urllib.request
 
 from local_harness.config import (
     JUDGE_MAX_RETRIES,
@@ -89,14 +91,8 @@ For EACH benchmark finding above, determine if the scanner detected it. Respond 
 
     for attempt in range(JUDGE_MAX_RETRIES + 1):
         try:
-            result = subprocess.run(
-                ["claude", "-p", prompt,
-                 "--output-format", "text",
-                 "--model", model,
-                 "--system-prompt", JUDGE_SYSTEM_PROMPT],
-                capture_output=True, text=True, timeout=JUDGE_TIMEOUT,
-            )
-        except subprocess.TimeoutExpired:
+            result = _invoke_judge(prompt, model)
+        except TimeoutError:
             return [{"finding_id": f["finding_id"], "detected": None,
                      "confidence": None, "reasoning": "judge timed out",
                      "matched_finding_id": None} for f in findings]
@@ -122,8 +118,54 @@ For EACH benchmark finding above, determine if the scanner detected it. Respond 
         return _parse_judge_output(result.stdout, findings)
 
 
+def _invoke_judge(prompt, model):
+    """One chat completion against the host's OpenAI-compatible endpoint.
+
+    ``VULNHUNT_BASE_URL`` is the endpoint the harness is already using.
+    There is no default and no vendor CLI.
+    """
+    base = os.environ.get("VULNHUNT_BASE_URL", "").rstrip("/")
+    if not base:
+        return type("R", (), {"returncode": 2, "stdout": "", "stderr": "VULNHUNT_BASE_URL is not set"})()
+    if not model:
+        model = os.environ.get("VULNHUNT_MODEL", "")
+    if not model:
+        return type("R", (), {"returncode": 2, "stdout": "", "stderr": "VULNHUNT_MODEL is not set"})()
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0,
+    }).encode()
+    request = urllib.request.Request(
+        base + "/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=JUDGE_TIMEOUT) as response:
+            body = json.loads(response.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:200]
+        return type("R", (), {"returncode": 1, "stdout": "", "stderr": f"{exc.code} {detail}"})()
+    except (TimeoutError, socket.timeout) as exc:
+        raise TimeoutError(str(exc)) from exc
+    except urllib.error.URLError as exc:
+        if isinstance(getattr(exc, "reason", None), TimeoutError):
+            raise TimeoutError(str(exc.reason))
+        return type("R", (), {"returncode": 1, "stdout": "", "stderr": str(exc.reason)})()
+    try:
+        text = body["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return type("R", (), {"returncode": 1, "stdout": "", "stderr": "judge response had no message content"})()
+    return type("R", (), {"returncode": 0, "stdout": text, "stderr": ""})()
+
+
 def _is_judge_rate_limited(result):
-    """Detect 429 rate limiting from claude CLI output."""
+    """Detect an HTTP 429 from the completion endpoint."""
     combined = (result.stderr or "") + (result.stdout or "")
     return "429" in combined and ("rate_limit" in combined or "rate limit" in combined.lower())
 

@@ -10,11 +10,15 @@ if "%USERPROFILE%"=="" (
     exit /b 1
 )
 
-set "SKILLS_PARENT=%USERPROFILE%\.claude\skills"
+if "%VULNHUNT_SKILLS_DIR%"=="" (
+    echo error: set VULNHUNT_SKILLS_DIR to the directory install.cmd copied into. 1>&2
+    exit /b 1
+)
+set "SKILLS_PARENT=%VULNHUNT_SKILLS_DIR%"
 
 rem Skill names to remove (must match the names install.cmd writes).
 set "removed_any=0"
-for %%S in (vulnhunt vulnhunt-fix-verify vulnhunter-fix) do (
+for %%S in (vulnhunt vulnhunt-fix-verify vulnhunter-fix vulnhunter-run) do (
     set "dst=%SKILLS_PARENT%\%%S"
     if exist "!dst!\" (
         rmdir /s /q "!dst!"

@@ -59,3 +59,12 @@ work/
 # Stray dir from a mis-quoted URL (e.g. a test writing "https://..." as a path)
 https:/
 
+# Local working / scratch directories (dev workspace only, never published)
+product_docs/
+query/
+dev/
+
+# Scan-output result dirs copied locally for benchmarking receipts
+*_VULNHUNT_RESULTS_*/
+*_RESULTS_*/
+

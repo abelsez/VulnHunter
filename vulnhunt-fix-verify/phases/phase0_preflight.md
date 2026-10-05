@@ -211,7 +211,7 @@ If `COMMENTS` was provided:
    - **R1-R5** in their numbered order. Note: R2 (cross-repo
      reference outside trusted roots) now classifies the claim as
      `rejected_unverifiable` rather than emitting a clone-request.
-     The agent runs a Haiku pre-flight that resolves cross-repo
+     The agent runs a lightweight-model pre-flight that resolves cross-repo
      references before the skill is invoked, so any unresolved
      reference left at this point is one the agent already
      classified as unfetchable. Treat the claim as a non-actionable
@@ -239,7 +239,7 @@ If `COMMENTS` was provided:
    (Step 0.7) for phase 4 to use. Do not write
    `verify_disposition.json` yourself in this phase. R2 hits are
    recorded as `rejected_unverifiable` claims and the run proceeds
-   to phase 1 — the orchestrator's Haiku pre-flight already had
+   to phase 1 — the orchestrator's lightweight-model pre-flight already had
    its chance to fetch additional sources before the skill ran.
 
 ## Step 0.7 — Write phase0_state.json

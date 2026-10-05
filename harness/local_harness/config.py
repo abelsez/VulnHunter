@@ -18,7 +18,7 @@ MAX_SCAN_WORKERS = 5
 SCAN_TIMEOUT = 21600  # 6 hours
 JUDGE_TIMEOUT = 600  # 10 minutes (batched judging can be larger)
 CLONE_TIMEOUT = 300  # 5 minutes
-MODEL = "claude-opus-4-8"
+MODEL = os.environ.get("VULNHUNT_MODEL", "")
 
 # --- Retry configuration for 429 rate limiting ---
 SCAN_MAX_RETRIES = 3
@@ -31,7 +31,14 @@ JUDGE_RETRY_INITIAL_BACKOFF = 30
 JUDGE_RETRY_BACKOFF_MULTIPLIER = 2.0
 JUDGE_RETRY_MAX_BACKOFF = 180
 
-SKILLS_DIR = os.path.expanduser("~/.claude/skills/vulnhunt")
+# Installed skill, else the copy in this repo. No harness path is assumed.
+# REPO_ROOT in this module is the harness directory, not the git root.
+_GIT_ROOT = os.path.dirname(REPO_ROOT)
+SKILLS_DIR = os.environ.get("VULNHUNT_SKILLS_DIR", "")
+if SKILLS_DIR:
+    SKILLS_DIR = os.path.join(SKILLS_DIR, "vulnhunt")
+else:
+    SKILLS_DIR = os.path.join(_GIT_ROOT, "vulnhunt")
 PHASES_DIR = os.path.join(SKILLS_DIR, "phases")
 
 # --- Batch scanning (ad-hoc URL list) ---

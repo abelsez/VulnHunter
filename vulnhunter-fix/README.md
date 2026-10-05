@@ -1,6 +1,6 @@
 # VulnHunter-Fix
 
-Automated security remediation skill for [Claude Code](https://docs.claude.com/en/docs/claude-code).
+Automated security remediation skill for any agent harness.
 This is the companion to VulnHunter: VulnHunter finds the vulnerabilities,
 VulnHunter-Fix remediates them via test-driven development. For each finding it
 writes an exploit demo, writes a failing security test (RED), implements the fix
@@ -10,25 +10,25 @@ writes an exploit demo, writes a failing security test (RED), implements the fix
 
 This skill ships as part of the [VulnHunter](https://github.com/capitalone/vulnhunter)
 repository. From the repository root, run the shared installer to copy all skills
-(including this one) into `~/.claude/skills/`:
+(including this one) into your harness's skills directory:
 
 ```bash
 ./install.sh      # installs vulnhunt, vulnhunt-fix-verify, and vulnhunter-fix
 ./uninstall.sh    # removes them
 ```
 
-Restart Claude Code afterward, then invoke it with `/vulnhunter-fix`. Re-run
+Restart your harness afterward, then invoke it with `/vulnhunter-fix`. Re-run
 `./install.sh` from the repo root any time you change this skill's files to sync the
 installed copy.
 
-> **Run on Opus.** The reasoning load (clustering, fix synthesis, the collaboration
-> loop) is calibrated for Opus; the skill stops and asks you to switch if it detects
-> Sonnet or Haiku.
+> **Run on your host's most capable reasoning model.** The reasoning load
+> (clustering, fix synthesis, the collaboration loop) is calibrated for it; the
+> skill stops and asks you to switch if it detects a weaker model.
 
 ## Requirements
 
-- The [Claude Code CLI](https://docs.claude.com/en/docs/claude-code), authenticated,
-  running on an Opus model.
+- Your agent harness's CLI, authenticated,
+  running on its most capable reasoning model.
 - `git` and the GitHub CLI (`gh`), authenticated for the repos you target.
 - Python 3.11+ with the skill's helper package installed:
   `python -m pip install -e ".[dev]"` (from this directory) — pulls in `jsonschema`.
@@ -47,16 +47,17 @@ GitHub checkout with no args; fork when you pass a target + results path).
 
 ```bash
 cd ~/code/my-project          # a repo where VulnHunter has posted findings as issues
-claude --model opus --add-dir ~/.claude/skills/vulnhunter-fix
-# then in Claude Code:
+# start your harness CLI on its most capable reasoning model, with this skill's
+# directory added to its skills search path
+# then invoke:
 /vulnhunter-fix
 ```
 
 ### Quick start (fork)
 
 ```bash
-claude --model opus --add-dir ~/.claude/skills/vulnhunter-fix
-# then in Claude Code:
+# start your harness CLI on its most capable reasoning model, with this skill's
+# directory added to its skills search path, then invoke:
 /vulnhunter-fix https://github.com/your-org/my-service /path/to/RepoName_VULNHUNT_RESULTS_*/
 ```
 

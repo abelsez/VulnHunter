@@ -15,17 +15,20 @@ trigger:
 
 ## MANDATORY FIRST ACTIONS
 
-**Step 0: Model check (interactive/direct invocation only).** When invoked
+**Step 0: Capability check (interactive/direct invocation only).** When invoked
 interactively — i.e. path **B** below, with no "Pre-resolved scan metadata"
-block — inspect the model you are running as. If it is NOT Opus 4.7 or higher,
-**STOP immediately** and tell the user (do not run any tools, resolve the target,
-or offer the mode menu yet):
+block — inspect the model you are running as. This audit relies on high-grade
+reasoning; the methodology may be unreliable on weaker models. If you are not
+on the host's most capable reasoning model, advise the user (do not run any
+tools, resolve the target, or offer the mode menu yet):
 
-> ⚠️ VulnHunter is optimized for Claude Opus 4.7/4.8 and may be unreliable on other
-> models. Please switch with the `/model opus` command, then re-run `/vulnhunt`.
+> ⚠️ VulnHunter is optimized for the host's most capable reasoning model and
+> may be unreliable on weaker models. Consider switching to the strongest
+> model your harness offers, then re-run `/vulnhunt`.
 
-Wait for the user. Only proceed past this step once they are on Opus, or if they
-explicitly reply that they want to continue on the current model anyway.
+Wait for the user. Only proceed past this step once they confirm — either by
+switching to the host's most capable reasoning model, or by explicitly replying
+that they want to continue on the current model anyway.
 
 Skip this check under path **A** (agent-driven); the agent controls the model.
 
@@ -114,7 +117,7 @@ primary analysis instruments. Use them liberally:
 - **Glob** `"**/*.go"`, `"**/*.js"`, etc. — discover files by language/pattern.
 - **Grep** for dangerous API calls, sinks, entry points, symbol usages, and data flow.
 - **Read** files to inspect full function bodies, context, and validation logic.
-- **Agent (Explore)** — for broader codebase exploration when simple searches aren't enough.
+- **Exploration subagent** — for broader codebase exploration when simple searches aren't enough.
 
 ### Investigation Discipline
 
@@ -226,9 +229,9 @@ variant. See "Build-Time Code Swapping" in Phase 1 for how to detect this.
    See top of this file. Do not proceed until both pass.
 
 2. **Hunt→Report**: This is the core of the audit. Execute steps A-E once.
-   **After each phase completes, run `/cost` and report the result to the user.**
+   **After each phase completes, check token usage and report the result to the user.**
 
-   **A. Phase 1 - Recon (subagent)**: Launch a `general-purpose` subagent:
+   **A. Phase 1 - Recon (subagent)**: Launch a subagent:
    > Your scan directory (absolute path) is `${VULNHUNT_DIR}`. Follow the prompt
    > in `${PHASES_DIR}/phase1_recon.md`. Write output to
    > `${VULNHUNT_DIR}/phase1_output.md`. IMPORTANT: Your return message must
@@ -246,14 +249,14 @@ variant. See "Build-Time Code Swapping" in Phase 1 for how to detect this.
    Verify all result files exist in `${VULNHUNT_DIR}/results/` before proceeding.
    Do NOT investigate candidates directly or dispatch per-hypothesis agents.
 
-   **C. Phase 2b - Verify (subagent)**: Launch a `general-purpose` subagent:
+   **C. Phase 2b - Verify (subagent)**: Launch a subagent:
    > Your scan directory is `${VULNHUNT_DIR}`. Follow the prompt in
    > `${PHASES_DIR}/phase2b_verify.md`. Read all result files from
    > `${VULNHUNT_DIR}/results/`. Write output to
    > `${VULNHUNT_DIR}/phase2b_output.md`. IMPORTANT: Return ≤20 words.
    Verify output file exists.
 
-   **D. Phase 3a+3b+3c - Reproduce, Test, Fix**: Launch a `general-purpose` subagent:
+   **D. Phase 3a+3b+3c - Reproduce, Test, Fix**: Launch a subagent:
    > Your scan directory is `${VULNHUNT_DIR}`. Follow the prompts in
    > `${PHASES_DIR}/phase3_reproduce_test.md` and `${PHASES_DIR}/phase3c_fixes.md`.
    > Read confirmed findings from `${VULNHUNT_DIR}/phase2b_output.md`.
@@ -266,7 +269,7 @@ variant. See "Build-Time Code Swapping" in Phase 1 for how to detect this.
    Verify `${VULNHUNT_DIR}/phase3_output.md` exists alongside the
    populated `poc/` and `exploit_tests/` directories.
 
-   **E. Phase 3d - Sweep**: Launch a `general-purpose` subagent:
+   **E. Phase 3d - Sweep**: Launch a subagent:
    > Your scan directory is `${VULNHUNT_DIR}`. Follow the prompt in
    > `${PHASES_DIR}/phase3d_sweep.md`. Read confirmed findings from
    > `${VULNHUNT_DIR}/poc/`. Write the sweep table and per-instance
@@ -321,7 +324,8 @@ Put them in the Code Quality section and stop.
 
 ## Phase Loading Instructions
 
-Phase files are in `${CLAUDE_SKILL_DIR}/phases/`. Use this as `PHASES_DIR`.
+Phase files live in the `phases/` directory inside the directory containing this
+SKILL.md. Use that directory as `PHASES_DIR`.
 
 **Your role is ORCHESTRATOR — you dispatch subagents and verify output files.
 You do NOT perform analysis yourself. Keep your context lean.**

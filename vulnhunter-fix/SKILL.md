@@ -96,21 +96,20 @@ In-place mode harvests findings from `vulnhunter`-labeled issues; no inputs are 
 
 ## Mandatory First Actions
 
-**Step 0: Confirm you're running on Opus.** *(in-place / interactive mode only — headless skips this)*
+**Step 0: Confirm you're on the host's most capable reasoning model.** *(in-place / interactive mode only — headless skips this)*
 
-The reasoning load in this skill — clustering findings by topic, the CANNOT_AUTO_FIX collaboration loop, fix synthesis when the report leaves gaps — is calibrated for Opus. Sonnet and Haiku produce noticeably worse results: weaker clustering, hand-wavier fix proposals, more dead-end iterations in the loop.
+The reasoning load in this skill — clustering findings by topic, the CANNOT_AUTO_FIX collaboration loop, fix synthesis when the report leaves gaps — is calibrated for the host's most capable reasoning model. Weaker or mid-tier models produce noticeably worse results: weaker clustering, hand-wavier fix proposals, more dead-end iterations in the loop.
 
-Check your own model identity from your session system prompt (it says "You are powered by the model named …"):
+If your harness lets you choose the model for this session, select its most capable reasoning model. If you are not confident you are that model:
 
-| You are | Action |
-|---------|--------|
-| Opus 4.x (any variant) | Proceed to Step 1. |
-| Sonnet 4.x | **Stop.** Tell the user, verbatim: `This skill is calibrated for Opus. Please run `/model claude-opus-4-8` and then re-invoke `/vulnhunter-fix`.` Do not run any other tool calls. |
-| Haiku 4.x | **Stop.** Same message as above. |
+| Situation | Action |
+|-----------|--------|
+| You are the host's most capable reasoning model | Proceed to Step 1. |
+| You run on a mid-tier or lightweight model | **Stop.** Tell the user, verbatim: `This skill is calibrated for the host's most capable reasoning model. Please re-run /vulnhunter-fix on it.` Do not run any other tool calls. |
 
-This is interactive-mode only. Headless mode invokes the executor with a fixed Opus model under the hood and skips this gate.
+This is interactive-mode only. Headless mode invokes the executor with a pinned high-capability model under the hood and skips this gate.
 
-The check applies even if the user has *just* switched models mid-session — you may have started this turn on Sonnet because that was the session default before they ran `/vulnhunter-fix`. The `/model` command takes effect on the *next* turn, so stopping here gives the user the clean handoff.
+The check applies even if the operator has *just* switched models mid-session — you may have started this turn on a lighter model because that was the session default before they ran `/vulnhunter-fix`. Model switches generally take effect on the *next* turn or session, so stopping here gives the user the clean handoff.
 
 **Step 0b: Confirm the installed skill is at upstream `main`.** *(in-place / interactive mode only)*
 
@@ -151,7 +150,7 @@ If any check fails, stop and report the failure to the user. Preflight only vali
 gh auth status >&2 || { echo "Not authenticated. Run: gh auth login" >&2; exit 1; }
 gh api user --jq .login >/dev/null || { echo "gh token invalid or GitHub unreachable" >&2; exit 1; }
 ```
-This runs through the Bash tool's working context (which has TLS the Python preflight doesn't). For in-place mode also verify the user can see `origin` (using the `OWNER_REPO` computed in mode dispatch so the call doesn't depend on `gh repo set-default`):
+This runs through the agent harness shell tool's working context (which has TLS the Python preflight doesn't). For in-place mode also verify the user can see `origin` (using the `OWNER_REPO` computed in mode dispatch so the call doesn't depend on `gh repo set-default`):
 ```bash
 gh repo view "$OWNER_REPO" --json name,owner >/dev/null \
     || { echo "Cannot view $OWNER_REPO via gh" >&2; exit 1; }
@@ -161,8 +160,7 @@ gh repo view "$OWNER_REPO" --json name,owner >/dev/null \
 
 **This rule overrides any local instinct to retry, fall back to a different tool, or work around a `git` / `gh` failure. Read it before every phase that runs either command.**
 
-Some target environments (notably macOS with corporate keychain interception or restrictive sandboxes) make `git` and `gh` calls fail intermittently from within Claude Code's Bash tool — even though the same command works perfectly in the user's own terminal. The failure modes vary:
-
+Some target environments (notably macOS with corporate keychain interception or restrictive sandboxes) make `git` and `gh` calls fail intermittently from within the agent harness's sandbox/shell tool — even though the same command works perfectly in the user's own terminal. The failure modes vary:
 - TLS errors: `tls: failed to verify certificate`, `x509: OSStatus -…`, `SSL certificate problem: unable to get local issuer certificate`, `Could not resolve host: api.github.com`.
 - Sandbox / filesystem denials during `git clone`: `Operation not permitted` when copying hook templates into `.git/hooks/`, `fatal: cannot copy '…/commit-msg.sample' to '…/.git/hooks/…'`.
 - Transient transport errors: `Post "https://api.github.com/graphql": …`, `dial tcp …: i/o timeout`.
@@ -181,8 +179,7 @@ When you hit one of these, this is the **only** acceptable sequence:
 2. **Tell the user, in plain text, exactly ONE command to run in their own terminal** (NOT a multi-command pipeline, NOT a `cd && cmd` chain — one literal command they can copy and paste). Use this exact format so the command stands out visually instead of getting buried in prose:
 
    ````
-   ⚠️ `<original tool call>` failed inside Claude Code's sandbox.
-
+   ⚠️ `<original tool call>` failed inside the agent harness's sandbox.
    **▶ Run this in your own terminal, then paste the output back (or just "done"):**
 
    ```bash
@@ -227,8 +224,7 @@ When the failing command involves a language toolchain that fetches dependencies
 For Go specifically — this is the most common case in the current target environments — the full template for module-cache repopulation is:
 
 ````
-⚠️ `go mod download` failed inside Claude Code's sandbox (network/proxy block).
-
+⚠️ `go mod download` failed inside the agent harness's sandbox (network/proxy block).
 **▶ Run this in your own terminal, then paste "done" back:**
 
 ```bash
@@ -350,16 +346,14 @@ The seven mechanical delivery gates (severity mask, body completeness, scope, id
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/preflight.py` | Verify LOCAL system requirements (Python, git, gh, Claude CLI, disk). Auth + network are checked via Bash in SKILL.md Step 1b. |
-| `scripts/check_repo_access.sh` | Verify push access to target repo (fork mode only) |
+| `scripts/preflight.py` | Verify LOCAL system requirements (Python, git, gh, agent CLI, disk). Auth + network are checked via the shell tool in SKILL.md Step 1b. |
 | `scripts/clone_repo.sh` | Clone or fork target repo (fork mode only) |
 | `scripts/parse_results.py` | Regex-based VulnHunter README → JSON (fork-mode/headless fallback; in-place uses model extraction in `prompts/parse_issues.md` Step 5a) |
 | `scripts/setup_worktree.sh` | Create per-cluster (in-place) git worktree |
 | `scripts/issue_intake.py` | Pure-logic marker extraction + homogeneity check + vulnfix_key |
 | `scripts/detect_mode.sh` | Canonical mode-dispatch logic (in-place vs fork) — referenced by SKILL.md Step 0 |
 | `scripts/cluster_score.py` | Authoritative risk-reduction scoring rubric (Critical=8, High=4, …) — called from `parse_issues.md` Step 3(b) |
-| `scripts/validate_findings_draft.py` | Shape-check `findings.draft.json` output of `parse_issues.md` Step 5a's Sonnet subagent |
-| `scripts/validate_pr_body.py` | Pre-flight check: PR body's `Closes #N` count matches cluster member count |
+| `scripts/validate_findings_draft.py` | Shape-check `findings.draft.json` output of `parse_issues.md` Step 5a's mid-tier subagent |
 
 ## Templates
 

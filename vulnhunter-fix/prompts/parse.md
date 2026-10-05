@@ -57,4 +57,4 @@ Present to the user:
 
 - `README.md` not found → STOP: "Invalid results path. Expected VulnHunter output at: {path}"
 - No confirmed findings → STOP: "No confirmed vulnerabilities to remediate."
-- Parser fails → STOP: "Failed to parse {path}/README.md. The regex parser couldn't extract findings from the summary table. Inspect the report manually and re-run, or if you are in interactive (in-place) mode, use `prompts/parse_issues.md` Step 5a's validated Sonnet extraction instead — do NOT freelance findings from the README, since hallucinated findings would produce PRs for vulnerabilities that don't exist."
+- Parser fails → STOP: "Failed to parse {path}/README.md. The regex parser couldn't extract findings from the summary table. Inspect the report manually and re-run, or if you are in interactive (in-place) mode, use `prompts/parse_issues.md` Step 5a's validated capable mid-tier extraction instead — do NOT freelance findings from the README, since hallucinated findings would produce PRs for vulnerabilities that don't exist."

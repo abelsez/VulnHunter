@@ -86,6 +86,6 @@ A test was written that defines the expected secure behavior. It **failed** befo
 ---
 
 VulnHunter-Finding: {VULN_ID}
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)
 
 <!-- vulnfix-key: {IDEMPOTENCY_KEY} -->

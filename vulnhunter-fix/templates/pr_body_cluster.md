@@ -78,4 +78,4 @@ subsection). The aggregate before/after state is in **Verification Results**.
 Cluster: {CLUSTER_NAME}
 Findings: {N}
 VulnHunter-Run: {RESULTS_DIR_NAME}
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)

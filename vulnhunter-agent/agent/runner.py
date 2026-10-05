@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -214,9 +215,9 @@ def _build_vulnhunt_prompt(
 
 
 def _vulnhunt_skill_path() -> Path | None:
-    """Locate the vulnhunt skill installation. Container path first, then $HOME."""
+    """Locate the vulnhunt skill installation. A container default first, then $HOME."""
     candidates = [
-        Path("/home/appuser/.claude/skills/vulnhunt"),
+        Path(os.environ.get("VULNHUNT_SKILLS_DIR", "/home/appuser/.claude/skills")) / "vulnhunt",
         Path.home() / ".claude" / "skills" / "vulnhunt",
     ]
     for path in candidates:
@@ -585,9 +586,10 @@ async def run_vulnhunt(
     skill_path = _vulnhunt_skill_path()
     if skill_path is None:
         exc = RuntimeError(
-            "vulnhunt skill not found at /home/appuser/.claude/skills/vulnhunt or "
-            "$HOME/.claude/skills/vulnhunt. Install the skill (run install.sh) "
-            "or rebuild the container so it gets baked in."
+            "vulnhunt skill not found under $VULNHUNT_SKILLS_DIR (default: "
+            "/home/appuser/.claude/skills) or $HOME/.claude/skills/vulnhunt. "
+            "Install the skill (run install.sh) or rebuild the container so it "
+            "gets baked in."
         )
         _emit_scan_completed_safely(
             audit_writer,

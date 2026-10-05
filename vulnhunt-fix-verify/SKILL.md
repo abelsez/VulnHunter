@@ -20,8 +20,8 @@ evidence; the code is.
 
 ## Tool allow-list
 
-You have **Read, Write, Edit, Glob, Grep, and Agent**. You do not
-have Bash or any network tool. Consequences:
+You have **Read, Write, Edit, Glob, Grep, and a subagent tool**. You do not
+have a shell or any network tool. Consequences:
 
 - You cannot run shell commands, exploit tests, or `git`.
 - You cannot create directories — every output path you write must
@@ -33,7 +33,7 @@ have Bash or any network tool. Consequences:
   (`REPO` plus `ADDITIONAL_REPOS`) at this point is treated as
   unverifiable per R2 — record it in the rationale and continue;
   do not halt.
-- You **can** dispatch subagents via the `Agent` tool, but it's not
+- You **can** dispatch subagents, but it's not
   required. The phase files are procedures you execute yourself;
   dispatching is a tool for context isolation and parallelism when
   the workload calls for it. For 1–3 finding runs, inline is fine.
@@ -64,9 +64,10 @@ and tell the user what's wrong. Do not invent defaults.
 
 ## Phase loading
 
-Phases live under `${CLAUDE_SKILL_DIR}/phases/`. Each phase file is
+Phases live under the `phases/` directory inside the directory containing this
+SKILL.md. Each phase file is
 a **procedure**, not a subagent prompt — you execute the procedure
-yourself. You have `Agent` available and may dispatch subagents when
+yourself. You may dispatch subagents when
 you judge they're useful (e.g. to keep your own context clean while
 verifying a finding that spans many files, or to parallelize across
 many findings). For a typical 1–3 finding run, inline is fine.
@@ -148,7 +149,7 @@ finding and write `${OUT}/disposition_VULN-NNN.json`.
 
 When the procedure is useful to parallelize (typically when
 `fixed_ids_in_report` has more than a few entries, or when individual
-findings would crowd your context), dispatch one `general-purpose`
+findings would crowd your context), dispatch one
 subagent per VULN in a single message — they run in parallel. Each
 subagent's prompt should include the finding ID, `REPO`, `OUT`, and
 a pointer to its `## VULN-NNN` section in
@@ -159,15 +160,15 @@ procedure yourself, one VULN at a time.
 
 **SYNCHRONIZATION BARRIER — mandatory before continuing to Step 4:**
 
-When you dispatched subagents, their Agent tool calls are in-flight.
+When you dispatched subagents, those calls are in-flight.
 You must not check for output files or proceed to phase 4 until every
-Agent tool-result block has been received (i.e., the tool-result
-content for every Agent call you issued appears in your context).
+subagent result has been received (the result content for every
+subagent call you issued appears in your context).
 Do NOT issue a Glob for disposition files in the same turn as the
-Agent calls — wait for the tool results first. Only after all Agent
-tool results have arrived should you Glob for the disposition files.
+subagent calls — wait for the results first. Only after all subagent
+results have arrived should you Glob for the disposition files.
 
-After all Agent tool results have been received, Glob for
+After all subagent results have been received, Glob for
 `${OUT}/disposition_*.json`. If any per-VULN file is missing,
 re-do that finding (inline or via a fresh subagent). If a specific
 VULN still can't produce a disposition after one retry, write a stub

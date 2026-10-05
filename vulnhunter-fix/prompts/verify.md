@@ -23,8 +23,8 @@ The committed security test is a **discoverable, repo-convention** test file (e.
 The orchestrating session runs steps directly, spawns subagents for verification and repair, and presents results to the user.
 
 - Pre-check uses `git fetch` + test on the **default branch** (the one captured in `.vulnhunter-fix/intake.json` as `default_branch`, usually `main`).
-- Verification agent = fresh Agent tool subagent (model="sonnet" for test-quality review, model="opus" for diagnosis when a test fails). Haiku is documented in `prompts/parse_issues.md` Step 5a as unreliable on shape-variable input — test-quality review (tautological assertions, missing RED phase, mock leakage) is exactly that shape, and a missed flag here lets a fake fix merge.
-- Fix agent = fresh Agent tool subagent operating on the cluster's worktree under `.vulnhunter-fix/worktrees/<CLUSTER_KEY>/`.
+- Verification agent = fresh subagent (capable mid-tier model for test-quality review, the host's most capable reasoning model for diagnosis when a test fails). Lightweight/cheap models are documented in `prompts/parse_issues.md` Step 5a as unreliable on shape-variable input — test-quality review (tautological assertions, missing RED phase, mock leakage) is exactly that shape, and a missed flag here lets a fake fix merge.
+- Fix agent = fresh subagent operating on the cluster's worktree under `.vulnhunter-fix/worktrees/<CLUSTER_KEY>/`.
 - Issue escalation does NOT use `.work/delivery/...` — that's fork-mode state. In-place artifacts live under `.vulnhunter-fix/delivery/` and the FIX_NOT_NEEDED / human-review records get rolled into the cluster's PR body instead of a parallel issue.
 - The repair loop is **uncapped** in this mode — the developer at the console decides when to stop (see implement.md "CANNOT_AUTO_FIX — Interactive collaboration loop"). Do NOT cap repair attempts at 3.
 - Final output is a human-readable summary table per cluster.
@@ -34,8 +34,8 @@ The orchestrating session runs steps directly, spawns subagents for verification
 The orchestrating session operates on a clone under `.work/<repo>/`, spawns subagents for verification and repair, and records per-finding outcomes in result JSONs. Used for repos that must be forked rather than edited in place.
 
 - Pre-check runs `git fetch` + the security test against the clone's checked-out default branch.
-- Verification agent = fresh Agent tool subagent (receives test + source only).
-- Fix agent = fresh Agent tool subagent (receives fix brief + worktree path).
+- Verification agent = fresh subagent (receives test + source only).
+- Fix agent = fresh subagent (receives fix brief + worktree path).
 - Issue escalation data is stored in `.work/<repo>/delivery/pending-human-reviews.json`.
 - The unit of work is a per-finding branch; each finding gets its own `group-NNN_result.json`.
 - Repair attempts are capped (see Step 3); after exhaustion, escalate per Step 4.
@@ -269,7 +269,7 @@ If any validation step fails (2a, 2b, or 2c), enter the repair loop.
      <what was changed and why, per the fix brief>
 
      VulnHunter-Finding: VULN-NNN
-     Co-Authored-By: Claude Code (VulnFix)
+     Co-Authored-By: VulnHunter (vulnhunter-fix)
      EOF
      )"
      ```

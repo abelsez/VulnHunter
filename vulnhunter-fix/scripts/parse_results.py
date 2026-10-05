@@ -4,10 +4,10 @@
 Extracts:
 - Code smells (regex-based — stable format, unlikely to drift)
 - File discovery (PoC and exploit_test paths per VULN ID)
-- README path for haiku-based findings extraction
+- README path for lightweight-model findings extraction
 
-Findings extraction is delegated to haiku at runtime (see the phase-2
-parse prompts). The regex-based fallback is retained for offline/test
+Findings extraction is delegated to a lightweight model at runtime (see the
+phase-2 parse prompts). The regex-based fallback is retained for offline/test
 use but is NOT the primary path in production.
 """
 
@@ -46,7 +46,7 @@ def compute_vulnfix_key(location: str, cwe: str, root_cause: str) -> str:
 def parse_summary_table(content: str) -> list[dict]:
     """Regex fallback: extract findings from the summary table.
 
-    Used only when haiku extraction is unavailable (tests, offline).
+    Used only when lightweight-model extraction is unavailable (tests, offline).
     Handles multi-CWE columns (`CWE-918 / CWE-74`, `CWE-22, CWE-23`)
     and High+ severities.
     """
@@ -316,9 +316,9 @@ def parse_results(results_path: str) -> dict:
     """Main parser: reads results directory and returns structured output.
 
     The `findings` array uses regex extraction as a fallback. In production
-    the Phase 2 parse orchestrator uses haiku to extract findings from the
-    README and merges the file paths from `vuln_files` into the
-    haiku-produced findings.
+    the Phase 2 parse orchestrator uses a lightweight model to extract findings
+    from the README and merges the file paths from `vuln_files` into those
+    findings.
     """
     results_dir = Path(results_path)
     readme = results_dir / "README.md"

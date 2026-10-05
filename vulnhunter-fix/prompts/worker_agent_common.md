@@ -58,7 +58,7 @@ The manifest contains:
   "test_convention": "sibling_tests_dir|mirror_tree|colocated",
   "test_dir_hint": "tests/|src/test/java/|spec/|__tests__/",
   "language": "python|javascript|java|go|...",
-  "model": "opus|sonnet|haiku",
+  "model": "capable|mid|lightweight",
   "test_policy": "must-pass|best-effort|skip",
   "max_retries": 2,
   "retry_attempt": 0,
@@ -338,7 +338,7 @@ Remediate {CWE}: {description}
 Validated: test was RED (vulnerable), now GREEN (secure)
 
 VulnHunter-Finding: {VULN_ID}
-Co-Authored-By: Claude Code (VulnFix)
+Co-Authored-By: VulnHunter (vulnhunter-fix)
 EOF
 )"
 ```

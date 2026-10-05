@@ -18,8 +18,11 @@ import glob
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -257,21 +260,20 @@ def invoke_diagnostic(finding, phase_key, evidence, results_dir, repo_dir):
     fid = finding["finding_id"]
     prompt = build_diagnostic_prompt(finding, phase_key, evidence, results_dir, repo_dir)
 
-    print(f"    [{fid}] Invoking claude ({MODEL}) in agentic mode, timeout 1200s ...", flush=True)
+    host = os.environ.get("VULNHUNT_HOST_CMD", "").strip()
+    if not host:
+        print(f"    [{fid}] VULNHUNT_HOST_CMD is not set", flush=True)
+        return {"root_cause": "VULNHUNT_HOST_CMD is not set", "prompt_file": "unknown",
+                "section_to_change": "", "suggested_change": "",
+                "change_type": "", "false_positive_risk": "unknown",
+                "risk_explanation": ""}
 
-    cmd = [
-        "claude", "-p", prompt,
-        "--output-format", "text",
-        "--model", MODEL,
-        "--system-prompt", DIAGNOSTIC_SYSTEM_PROMPT,
-        "--allowedTools", "Read", "Bash(grep:*)", "Bash(wc:*)", "Bash(ls:*)",
-        "Bash(find:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(cat:*)",
-        "--permission-mode", "acceptEdits",
-        "--add-dir", repo_dir,
-        "--add-dir", results_dir,
-        "--add-dir", os.path.join(REPO_ROOT, "skill", "phases"),
-        "--add-dir", BENCHMARK_DIR,
-    ]
+    print(f"    [{fid}] Invoking host command, timeout 1200s ...", flush=True)
+    prompt_dir = tempfile.mkdtemp(prefix="vulnhunt-diagnose-")
+    prompt_file = os.path.join(prompt_dir, "prompt.txt")
+    with open(prompt_file, "w") as handle:
+        handle.write(DIAGNOSTIC_SYSTEM_PROMPT + "\n\n" + prompt)
+    cmd = shlex.split(host) + [prompt_file]
 
     start = time.time()
     try:
@@ -285,6 +287,8 @@ def invoke_diagnostic(finding, phase_key, evidence, results_dir, repo_dir):
                 "section_to_change": "", "suggested_change": "",
                 "change_type": "", "false_positive_risk": "unknown",
                 "risk_explanation": ""}
+    finally:
+        shutil.rmtree(prompt_dir, ignore_errors=True)
 
     elapsed = time.time() - start
     if result.returncode != 0:

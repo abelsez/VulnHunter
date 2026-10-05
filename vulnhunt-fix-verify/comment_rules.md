@@ -91,7 +91,7 @@ Disposition: `rejected_unverifiable` with rationale prefix
 reading the verdict comment can supply it on a subsequent run.
 
 Note: this rule no longer halts the run with a clone-request.
-The agent runs a Haiku pre-flight before invoking the skill that
+The agent runs a lightweight-model pre-flight before invoking the skill that
 resolves cross-repo references against full URLs and the
 configured `repo_aliases` table. By the time phase 0 sees the
 comments file, anything still flagged here is a reference the
