@@ -119,6 +119,7 @@ SKILLS=(
     "vulnhunt-fix-verify:$SCRIPT_DIR/vulnhunt-fix-verify"
     "vulnhunter-fix:$SCRIPT_DIR/vulnhunter-fix"
     "vulnhunter-run:$SCRIPT_DIR/vulnhunter-run"
+    "vulnhunt-recon:$SCRIPT_DIR/vulnhunt-recon"
 )
 
 # Create the parent skills directory if missing.
@@ -182,8 +183,11 @@ done
 
 if [ -n "$AGENTS_DIR" ]; then
     mkdir -p "$AGENTS_DIR"
-    cp "$SCRIPT_DIR/agents/vulnhunter.md" "$AGENTS_DIR/vulnhunter.md"
-    echo "Installed agent definition to $AGENTS_DIR/vulnhunter.md"
+    for agent_file in "$SCRIPT_DIR"/agents/*.md; do
+        [ -e "$agent_file" ] || continue
+        cp "$agent_file" "$AGENTS_DIR/"
+        echo "Installed agent definition to $AGENTS_DIR/$(basename "$agent_file")"
+    done
 fi
 
 # vh must be on PATH. The skills call it from checkouts that are not this repo.

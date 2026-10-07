@@ -56,6 +56,7 @@ VulnHunter was developed internally at Capital One and open-sourced for the comm
 | **Harness-neutral report language** | Claude-specific prose throughout the skills | Harness-neutral tool language (Agent → subagent, Claude CLI → harness session) | **Shipped** |
 | **Sandbox-first exploit validation** | Exploit tests may be static traces; runtime choice ad hoc | Docker-first runtime provisioning; the runtime recorded per finding; Medium+ severity must execute | **In progress** |
 | **Measured-impact PoCs** | PoCs are documents; impact asserted | Executable PoC + impact number in the finding (rows exposed, requests amplified, key-hours stranded) | **In progress** |
+| **External recon skill** | — (absent) | `vulnhunt-recon`: passive-first, scope-gated bug bounty attack-surface mapping (subdomains, live hosts, tech, endpoints, parameters) that hands off to `/vulnhunt` | **Shipped** |
 
 ## Why the changes
 
@@ -137,6 +138,7 @@ Each component is organized into a self-contained subtree:
 | `vulnhunt/` | The core `/vulnhunt` scanner skill (Prompt-only: `SKILL.md` + phases). See [`vulnhunt/README.md`](vulnhunt/README.md). |
 | `vulnhunter-fix/` | The `/vulnhunter-fix` skill, its companion Python helper package, and tests. See [`vulnhunter-fix/README.md`](vulnhunter-fix/README.md). |
 | `vulnhunt-fix-verify/` | The `/vulnhunt-fix-verify` standalone verification skill (Prompt-only). See [`vulnhunt-fix-verify/README.md`](vulnhunt-fix-verify/README.md). |
+| `vulnhunt-recon/` | The `/vulnhunt-recon` external attack-surface reconnaissance skill (prompt-only + helper scripts). See [`vulnhunt-recon/README.md`](vulnhunt-recon/README.md). |
 | `vulnhunter-agent/` | Config-driven headless runtime wrapper that runs scans and files GitHub issues. See [`vulnhunter-agent/README.md`](vulnhunter-agent/README.md). |
 | `harness/` | Developer tooling for running large batch-scans and benchmarking detection accuracy. See [`harness/README.md`](harness/README.md). |
 
@@ -220,6 +222,20 @@ Install the `vulnhunt-fix-verify` skill (it reads `vulnhunt-fix-verify/phases/`)
 ```text
 /vulnhunt-fix-verify repo=<abs_path> report=<abs_path> fixed=VULN-001,... out=<abs_path> [comments=<abs_path>] [additional_repos=<path1>,<path2>]
 ```
+
+### 4. Run Recon (external attack surface)
+Map an *authorized* bug bounty target before you hunt it: subdomains, live
+hosts, services, technologies, endpoints, and parameters — passive-first and
+scope-gated. Install the `vulnhunt-recon` skill and invoke:
+
+```text
+/vulnhunt-recon
+```
+
+Point it at a scope directory containing `in_scope.txt` and `out_of_scope.txt`
+(default: `scopes/`). It refuses to run without scope, filters every host and
+URL through `scope_check.py`, and ends with a `/vulnhunt` handoff. See
+[`vulnhunt-recon/README.md`](vulnhunt-recon/README.md).
 
 ---
 
